@@ -28,7 +28,7 @@ Work on the highest priority incomplete item in TODO.md.
 ## Rules
 1. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
 2. Do NOT declare success until tests pass
-3. Commit after completing each task with a descriptive message
+3. Commit ALL changes after completing each task: ` + "`git add . && git commit -m \"descriptive message\"`" + `
 4. Update .autoclaude/TODO.md: check off completed items (change "- [ ]" to "- [x]"), do NOT delete them
 5. Update .autoclaude/STATUS.md with current progress
 6. ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
@@ -90,9 +90,13 @@ Specific instructions for the coder to fix these issues.
 ` + "```" + `
 MINOR_ISSUES
 
-Brief summary. Adding to TODOs for later.
+Brief summary of minor issues found.
 ` + "```" + `
-Then add the minor issues to .autoclaude/TODO.md for later.
+Then you MUST add each minor issue as a new TODO item to .autoclaude/TODO.md under "## Pending":
+` + "```" + `
+- [ ] **Fix: <issue description>** - Completion: <specific criteria>
+  - Priority: low
+` + "```" + `
 
 Be thorough but pragmatic. NEEDS_FIXES is only for blocking issues that prevent the code from working correctly.
 `
@@ -123,7 +127,7 @@ Use them to verify your fix works before committing.
 2. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
 3. Do NOT declare success until tests pass
 4. Do NOT move on to other TODOs - focus only on fixing these issues
-5. Commit your fixes with a descriptive message
+5. Commit ALL changes with: ` + "`git add . && git commit -m \"descriptive message\"`" + `
 6. ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
 
 ## When Done

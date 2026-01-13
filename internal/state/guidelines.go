@@ -123,6 +123,9 @@ func goGuidelines() string {
 	return `
 ## Go
 
+### Formatting
+- ALWAYS run ` + "`gofmt -w .`" + ` before committing
+
 ### Panic Safety
 - ALWAYS use ` + "`defer`" + ` for mutex unlock: ` + "`mu.Lock(); defer mu.Unlock()`" + `
 - ALWAYS use ` + "`defer`" + ` for resource cleanup (files, connections, etc.)

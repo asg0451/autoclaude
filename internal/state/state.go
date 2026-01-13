@@ -272,15 +272,27 @@ Initialized autoclaude. Ready to run.
 
 // UpdateStatus updates the STATUS.md file with current state
 func (s *State) UpdateStatus(message string) error {
+	currentTodo := GetCurrentTodo()
+	todoSection := ""
+	if currentTodo != "(unknown)" && currentTodo != "" {
+		todoSection = fmt.Sprintf("**Current TODO:** %s\n", currentTodo)
+	}
+
+	retryInfo := ""
+	if s.Step == StepCritic && s.RetryCount > 0 {
+		retryInfo = fmt.Sprintf(" (attempt %d/%d)", s.RetryCount+1, 3)
+	}
+
 	content := fmt.Sprintf(`# Status
 
-**Current Step:** %s (iteration %d/%d)
-**Goal:** %s
+**Current Step:** %s%s
+**TODO #:** %d
+%s**Goal:** %s
 **Test Command:** %s
 
 ## Latest Update
 %s
-`, s.Step, s.Iteration, s.MaxIterations, s.Goal, s.TestCmd, message)
+`, s.Step, retryInfo, s.Iteration, todoSection, s.Goal, s.TestCmd, message)
 
 	return os.WriteFile(StatusPath(), []byte(content), 0644)
 }
