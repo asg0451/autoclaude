@@ -131,6 +131,14 @@ func goGuidelines() string {
 - ALWAYS use ` + "`defer`" + ` for mutex unlock: ` + "`mu.Lock(); defer mu.Unlock()`" + `
 - ALWAYS use ` + "`defer`" + ` for resource cleanup (files, connections, etc.)
 - NEVER call ` + "`mu.Unlock()`" + ` without defer unless there's a specific reason documented in a comment
+- If you need to hold a lock for only part of a function, use an IIFE:
+  ` + "```go" + `
+  result := func() T {
+      mu.Lock()
+      defer mu.Unlock()
+      return protected
+  }()
+  ` + "```" + `
 
 ### Error Handling
 - Always check and handle errors - never ignore them with ` + "`_`" + `
