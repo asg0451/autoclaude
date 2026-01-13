@@ -51,7 +51,9 @@
       "Bash(cat:*)",
       "Bash(xargs ls:*)",
       "Bash(gofmt:*)",
-      "Bash(golangci-lint:*)"
+      "Bash(golangci-lint:*)",
+      "Bash(pkill:*)",
+      "Read(/tmp/claude/**)"
     ]
   }
 }
