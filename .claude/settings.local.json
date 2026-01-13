@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(go mod init:*)",
+      "Bash(go build:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(./autoclaude:*)",
+      "Bash(go vet:*)",
+      "Bash(tree:*)",
+      "Bash(echo:*)"
+    ]
+  }
+}
