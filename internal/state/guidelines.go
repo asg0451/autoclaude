@@ -127,6 +127,15 @@ func goGuidelines() string {
 - ALWAYS run ` + "`gofmt -w .`" + ` before committing
 - Critic MUST run ` + "`golangci-lint run`" + ` as part of code review
 
+### Project Layout
+- ` + "`cmd/`" + ` - Main applications (one subdirectory per binary)
+- ` + "`internal/`" + ` - Private code that cannot be imported by other projects
+- ` + "`pkg/`" + ` - Public library code that can be imported (use sparingly)
+- Put main.go in the root only for simple single-binary projects
+- Group related functionality into packages by domain, not by type
+- Avoid ` + "`utils/`" + `, ` + "`helpers/`" + `, ` + "`common/`" + ` packages - be specific
+- Keep package names short, lowercase, no underscores
+
 ### Panic Safety
 - ALWAYS use ` + "`defer`" + ` for mutex unlock: ` + "`mu.Lock(); defer mu.Unlock()`" + `
 - ALWAYS use ` + "`defer`" + ` for resource cleanup (files, connections, etc.)
