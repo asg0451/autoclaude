@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 )
@@ -32,9 +33,8 @@ func KillSession() error {
 
 // SendCommand sends a command to the tmux session
 func SendCommand(command string) error {
-	// Escape any single quotes in the command
-	escapedCmd := strings.ReplaceAll(command, "'", "'\\''")
-	cmd := exec.Command("tmux", "send-keys", "-t", SessionName, escapedCmd, "Enter")
+	// Send command and Enter together - don't use -l flag so shell operators work
+	cmd := exec.Command("tmux", "send-keys", "-t", SessionName, command, "Enter")
 	return cmd.Run()
 }
 
@@ -47,6 +47,34 @@ func Attach() error {
 
 	args := []string{"tmux", "attach-session", "-t", SessionName}
 	return syscall.Exec(tmuxPath, args, os.Environ())
+}
+
+// AttachAndWait attaches to the tmux session and waits for it to end
+// Returns when the session no longer exists
+func AttachAndWait() error {
+	// Attach in foreground (not exec, so we return when done)
+	cmd := exec.Command("tmux", "attach-session", "-t", SessionName)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// This blocks until the user detaches or the session ends
+	err := cmd.Run()
+
+	// If session ended, that's fine
+	if !SessionExists() {
+		return nil
+	}
+
+	return err
+}
+
+// WaitForSessionEnd polls until the session no longer exists
+func WaitForSessionEnd() {
+	for SessionExists() {
+		// Small sleep to avoid busy loop
+		exec.Command("sleep", "0.5").Run()
+	}
 }
 
 // RunInSession creates a session if needed and runs a command in it
@@ -78,6 +106,60 @@ func RunAndAttach(workDir, command string) error {
 	}
 
 	return Attach()
+}
+
+// RunClaudeWithPromptFile runs Claude with a prompt read from a file
+// This avoids shell quoting issues with long prompts by creating a runner script
+func RunClaudeWithPromptFile(workDir, promptFile string, planMode bool) error {
+	// Kill existing session if it exists
+	if SessionExists() {
+		if err := KillSession(); err != nil {
+			// Ignore errors
+		}
+	}
+
+	// Create a runner script that properly handles the prompt
+	runnerPath := filepath.Join(workDir, ".autoclaude", "run_claude.sh")
+	var claudeCmd string
+	if planMode {
+		claudeCmd = "claude --permission-mode plan"
+	} else {
+		claudeCmd = "claude"
+	}
+
+	scriptContent := fmt.Sprintf(`#!/bin/bash
+set -e
+PROMPT_FILE=%q
+if [ ! -f "$PROMPT_FILE" ]; then
+    echo "ERROR: Prompt file not found: $PROMPT_FILE"
+    echo "Press Enter to exit..."
+    read
+    exit 1
+fi
+echo "Starting Claude with prompt from: $PROMPT_FILE"
+echo "---"
+%s -- "$(cat "$PROMPT_FILE")"
+echo ""
+echo "--- Claude session ended ---"
+echo "Press Enter to continue..."
+read
+`, promptFile, claudeCmd)
+
+	if err := os.WriteFile(runnerPath, []byte(scriptContent), 0755); err != nil {
+		return fmt.Errorf("failed to write runner script: %w", err)
+	}
+
+	// Create new session
+	if err := CreateSession(workDir); err != nil {
+		return fmt.Errorf("failed to create tmux session: %w", err)
+	}
+
+	// Run the script
+	if err := SendCommand(runnerPath); err != nil {
+		return fmt.Errorf("failed to send command to tmux: %w", err)
+	}
+
+	return AttachAndWait()
 }
 
 // IsInsideTmux checks if we're already running inside tmux

@@ -12,13 +12,21 @@ import (
 var baselineJSON []byte
 
 const (
-	ClaudeDir        = ".claude"
-	SettingsFile     = "settings.local.json"
-	PromptsDir       = "prompts"
-	CoderPromptFile  = "coder_prompt.md"
-	CriticPromptFile = "critic.md"
-	EvalPromptFile   = "evaluator.md"
+	ClaudeDir          = ".claude"
+	SettingsFile       = "settings.local.json"
+	AutoclaudeDir      = ".autoclaude"
+	PromptsSubdir      = "prompts"
+	CoderPromptFile    = "coder_prompt.md"
+	CriticPromptFile   = "critic.md"
+	EvalPromptFile     = "evaluator.md"
+	PlannerPromptFile  = "planner_prompt.md"
+	CurrentPromptFile  = "current_prompt.md"
 )
+
+// PromptsDir returns the path to the prompts directory under .autoclaude
+func PromptsDir() string {
+	return filepath.Join(AutoclaudeDir, PromptsSubdir)
+}
 
 // ClaudeSettings represents the Claude settings file structure
 type ClaudeSettings struct {
@@ -55,7 +63,7 @@ func SettingsPath() string {
 
 // PromptsPath returns the path to a prompt file
 func PromptsPath(filename string) string {
-	return filepath.Join(PromptsDir, filename)
+	return filepath.Join(PromptsDir(), filename)
 }
 
 // CoderPromptPath returns the path to the coder prompt
@@ -71,6 +79,17 @@ func CriticPromptPath() string {
 // EvaluatorPromptPath returns the path to the evaluator prompt
 func EvaluatorPromptPath() string {
 	return PromptsPath(EvalPromptFile)
+}
+
+// PlannerPromptPath returns the path to the planner prompt
+func PlannerPromptPath() string {
+	return PromptsPath(PlannerPromptFile)
+}
+
+// CurrentPromptPath returns the path to the current prompt being executed
+// This is used to pass prompts to Claude via file to avoid shell quoting issues
+func CurrentPromptPath() string {
+	return filepath.Join(AutoclaudeDir, CurrentPromptFile)
 }
 
 // LoadBaseline loads the embedded baseline permissions
@@ -187,8 +206,8 @@ func Save(settings *ClaudeSettings) error {
 	return nil
 }
 
-// SetupSettings merges baseline with existing settings and adds the stop hook
-func SetupSettings(autoclaudePath string) error {
+// SetupPermissions merges baseline permissions with existing settings (no stop hook)
+func SetupPermissions() error {
 	baseline, err := LoadBaseline()
 	if err != nil {
 		return err
@@ -200,12 +219,50 @@ func SetupSettings(autoclaudePath string) error {
 	}
 
 	merged := MergeSettings(baseline, existing)
-	AddStopHook(merged, autoclaudePath)
-
 	return Save(merged)
+}
+
+// SetupStopHook adds the stop hook to settings (called by run, not init)
+func SetupStopHook(autoclaudePath string) error {
+	existing, err := LoadExisting()
+	if err != nil {
+		return err
+	}
+
+	AddStopHook(existing, autoclaudePath)
+	return Save(existing)
+}
+
+// RemoveStopHook removes the autoclaude stop hook from settings
+func RemoveStopHook(autoclaudePath string) error {
+	existing, err := LoadExisting()
+	if err != nil {
+		return err
+	}
+
+	if existing.Hooks == nil || len(existing.Hooks.Stop) == 0 {
+		return nil
+	}
+
+	expectedCmd := fmt.Sprintf("%s _continue", autoclaudePath)
+	var newStopHooks []HookConfig
+	for _, h := range existing.Hooks.Stop {
+		var newInnerHooks []Hook
+		for _, inner := range h.Hooks {
+			if inner.Command != expectedCmd {
+				newInnerHooks = append(newInnerHooks, inner)
+			}
+		}
+		if len(newInnerHooks) > 0 {
+			newStopHooks = append(newStopHooks, HookConfig{Hooks: newInnerHooks})
+		}
+	}
+	existing.Hooks.Stop = newStopHooks
+
+	return Save(existing)
 }
 
 // EnsurePromptsDir creates the prompts directory if it doesn't exist
 func EnsurePromptsDir() error {
-	return os.MkdirAll(PromptsDir, 0755)
+	return os.MkdirAll(PromptsDir(), 0755)
 }

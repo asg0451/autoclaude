@@ -27,6 +27,7 @@ Read .autoclaude/TODO.md and work on the highest priority incomplete item.
 3. Commit after completing each task with a descriptive message
 4. Update .autoclaude/TODO.md: mark items complete, add new items if discovered
 5. Update .autoclaude/STATUS.md with current progress
+6. Ignore .autoclaude/ directory contents except for TODO.md, NOTES.md, STATUS.md
 {{CONSTRAINTS}}
 
 ## When Done
@@ -73,32 +74,71 @@ const evaluatorTemplate = `You are evaluating if the goal is achieved.
 `
 
 // plannerTemplate is the template for the initial planner (used during init)
-const plannerTemplate = `You are planning a project. The goal is:
+// This prompt emphasizes collaborative design with the user
+const plannerTemplate = `You are a collaborative design partner helping to plan a software project.
 
+## Goal
 {{GOAL}}
 
-Test command: ` + "`{{TEST_CMD}}`" + `
+## Test Command
+` + "`{{TEST_CMD}}`" + `
 {{CONSTRAINTS}}
 
-## Your Task
-1. Analyze the codebase to understand current state
-2. Ask clarifying questions using AskUserQuestion tool if scope is unclear
-3. Break down the goal into specific, actionable TODOs
-4. Each TODO must have:
-   - Clear description
-   - Completion criteria (how do we know it's done?)
-   - Priority (high/medium/low)
+## Important Context
+- The repository may be empty or minimal - don't spend time searching for code that doesn't exist
+- If the repo is empty, focus on designing the initial structure with the user
+- The .autoclaude/ directory contains orchestration files - ignore it
 
-Write the TODOs to .autoclaude/TODO.md in the format shown below, then stop.
+## Your Approach
 
-## TODO Format
-` + "```" + `
+Work WITH the user to understand and refine the design before creating implementation tasks.
+
+### Phase 1: Understand
+- Quickly check if this is a new/empty repo or has existing code
+- If existing code: explore architecture and patterns briefly
+- If empty/new: skip to Phase 2 - no need to search for nonexistent files
+
+### Phase 2: Clarify & Design
+- Ask the user clarifying questions about ambiguous requirements
+- Discuss architectural decisions and tradeoffs
+- Propose design approaches and get user feedback
+- Don't assume - when in doubt, ASK using AskUserQuestion
+
+Good questions to consider:
+- What are the edge cases we need to handle?
+- Are there performance or scale considerations?
+- How should this integrate with existing code?
+- What's the minimal viable version vs full implementation?
+- Are there security implications to consider?
+
+### Phase 3: Create TODOs
+Once you and the user have agreed on the approach, create a comprehensive task list.
+
+Each TODO must have:
+- Clear, specific description
+- Concrete completion criteria (how we verify it's done)
+- Priority (high/medium/low)
+- Dependencies on other tasks if any
+
+Write the final TODOs to .autoclaude/TODO.md using this format:
+
+` + "```markdown" + `
 # TODOs
 
 ## Pending
-- [ ] **Task name** - Completion: specific criteria
-  - Priority: high|medium|low
+- [ ] **Task name** - Completion: specific measurable criteria
+  - Priority: high
+  - Dependencies: none (or list task names)
+
+- [ ] **Another task** - Completion: tests pass, feature works as specified
+  - Priority: medium
+  - Dependencies: Task name above
 ` + "```" + `
+
+## Important
+- Take time to get the design right - it's cheaper to iterate on plans than code
+- Err on the side of asking questions rather than making assumptions
+- The user is your partner in this process, involve them in decisions
 `
 
 // expandTemplate replaces template variables with values
@@ -188,4 +228,31 @@ func LoadEvaluator() (string, error) {
 		return "", fmt.Errorf("failed to read evaluator prompt: %w", err)
 	}
 	return string(data), nil
+}
+
+// SavePlannerPrompt saves the planner prompt to a file
+func SavePlannerPrompt(params PromptParams) (string, error) {
+	if err := config.EnsurePromptsDir(); err != nil {
+		return "", fmt.Errorf("failed to create prompts directory: %w", err)
+	}
+
+	content := GeneratePlanner(params)
+	path := config.PlannerPromptPath()
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("failed to write planner prompt: %w", err)
+	}
+	return path, nil
+}
+
+// WriteCurrentPrompt writes a prompt to the current prompt file for use with Claude
+func WriteCurrentPrompt(content string) (string, error) {
+	if err := os.MkdirAll(config.AutoclaudeDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create .autoclaude directory: %w", err)
+	}
+
+	path := config.CurrentPromptPath()
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("failed to write current prompt: %w", err)
+	}
+	return path, nil
 }

@@ -1,12 +1,11 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
 	"go.coldcutz.net/autoclaude/internal/claude"
 	"go.coldcutz.net/autoclaude/internal/config"
@@ -85,25 +84,21 @@ func runInit(cmd *cobra.Command, args []string) error {
 		Constraints: initConstraints,
 	}
 
-	// Step 1: Generate and save prompts
-	fmt.Println("  Generating prompts...")
-	if err := prompt.SavePrompts(params); err != nil {
-		return fmt.Errorf("failed to save prompts: %w", err)
-	}
-
-	// Step 2: Create .autoclaude directory structure
+	// Step 1: Create .autoclaude directory structure first
 	fmt.Println("  Creating .autoclaude directory...")
 	if err := state.InitDir(goal, initTestCmd); err != nil {
 		return fmt.Errorf("failed to create .autoclaude directory: %w", err)
 	}
 
-	// Step 3: Set up permissions and stop hook
-	fmt.Println("  Configuring Claude settings...")
-	autoclaudePath, err := getExecutablePath()
-	if err != nil {
-		return fmt.Errorf("failed to get autoclaude path: %w", err)
+	// Step 2: Generate and save prompts
+	fmt.Println("  Generating prompts...")
+	if err := prompt.SavePrompts(params); err != nil {
+		return fmt.Errorf("failed to save prompts: %w", err)
 	}
-	if err := config.SetupSettings(autoclaudePath); err != nil {
+
+	// Step 3: Set up permissions (but NOT stop hook - that's only for run)
+	fmt.Println("  Configuring Claude settings...")
+	if err := config.SetupPermissions(); err != nil {
 		return fmt.Errorf("failed to setup settings: %w", err)
 	}
 
@@ -114,21 +109,25 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save state: %w", err)
 	}
 
-	// Step 5: Run planner to generate initial TODOs (interactive in tmux)
+	// Step 5: Run planner to generate initial TODOs (interactive in tmux with plan mode)
 	if !initSkipPlanner {
-		fmt.Println("  Running planner to generate TODOs...")
-		fmt.Println("  (You can interact with Claude to clarify scope)")
+		fmt.Println("  Running collaborative planner...")
+		fmt.Println("  (Claude will work with you to clarify the design)")
 		fmt.Println()
 
-		plannerPrompt := prompt.GeneratePlanner(params)
+		// Save planner prompt to file
+		plannerPath, err := prompt.SavePlannerPrompt(params)
+		if err != nil {
+			return fmt.Errorf("failed to save planner prompt: %w", err)
+		}
 
 		wd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get working directory: %w", err)
 		}
 
-		claudeCmd := claude.BuildCommand(plannerPrompt)
-		if err := tmux.RunAndAttach(wd, claudeCmd); err != nil {
+		// Run Claude with the planner prompt file
+		if err := tmux.RunClaudeWithPromptFile(wd, plannerPath, false); err != nil {
 			return fmt.Errorf("failed to run planner: %w", err)
 		}
 	}
@@ -137,8 +136,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("Initialization complete!")
 	fmt.Println()
 	fmt.Println("Created:")
-	fmt.Printf("  %s  (prompts)\n", config.PromptsDir)
-	fmt.Printf("  %s  (state & tracking)\n", state.AutoclaudeDir)
+	fmt.Printf("  %s  (prompts & tracking)\n", config.AutoclaudeDir)
 	fmt.Printf("  %s  (permissions & hooks)\n", config.SettingsPath())
 	fmt.Println()
 	fmt.Println("Next steps:")
@@ -149,19 +147,22 @@ func runInit(cmd *cobra.Command, args []string) error {
 }
 
 func gatherRequirements(existingGoal string) (goal, testCmd, constraints string, err error) {
-	reader := bufio.NewReader(os.Stdin)
+	rl, err := readline.New("")
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to initialize readline: %w", err)
+	}
+	defer rl.Close()
 
 	// Goal
 	if existingGoal != "" {
 		goal = existingGoal
 		fmt.Printf("Goal: %s\n", goal)
 	} else {
-		fmt.Print("What is the goal? ")
-		goal, err = reader.ReadString('\n')
+		rl.SetPrompt("What is the goal? ")
+		goal, err = rl.Readline()
 		if err != nil {
 			return "", "", "", fmt.Errorf("failed to read goal: %w", err)
 		}
-		goal = strings.TrimSpace(goal)
 	}
 
 	// Test command
@@ -169,12 +170,11 @@ func gatherRequirements(existingGoal string) (goal, testCmd, constraints string,
 		testCmd = initTestCmd
 		fmt.Printf("Test command: %s\n", testCmd)
 	} else {
-		fmt.Print("What command verifies success? (e.g., make test, go test ./...) ")
-		testCmd, err = reader.ReadString('\n')
+		rl.SetPrompt("What command verifies success? (e.g., make test, go test ./...) ")
+		testCmd, err = rl.Readline()
 		if err != nil {
 			return "", "", "", fmt.Errorf("failed to read test command: %w", err)
 		}
-		testCmd = strings.TrimSpace(testCmd)
 	}
 
 	// Constraints
@@ -182,21 +182,26 @@ func gatherRequirements(existingGoal string) (goal, testCmd, constraints string,
 		constraints = initConstraints
 		fmt.Printf("Constraints: %s\n", constraints)
 	} else {
-		fmt.Print("Any constraints or rules? (press Enter to skip) ")
-		constraints, err = reader.ReadString('\n')
+		rl.SetPrompt("Any constraints or rules? (press Enter to skip) ")
+		constraints, err = rl.Readline()
 		if err != nil {
 			return "", "", "", fmt.Errorf("failed to read constraints: %w", err)
 		}
-		constraints = strings.TrimSpace(constraints)
 	}
 
 	return goal, testCmd, constraints, nil
 }
 
+// getExecutablePath returns the absolute path to the autoclaude binary
 func getExecutablePath() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return "", err
 	}
 	return filepath.Abs(exe)
+}
+
+// GetExecutablePath is exported for use by other commands
+func GetExecutablePath() (string, error) {
+	return getExecutablePath()
 }

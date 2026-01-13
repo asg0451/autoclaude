@@ -156,6 +156,18 @@ Initialized autoclaude. Ready to run.
 		return fmt.Errorf("failed to create STATUS.md: %w", err)
 	}
 
+	// Create .claudeignore to prevent Claude from reading autoclaude internals
+	claudeignoreContent := `# Ignore autoclaude internal files - these are for orchestration only
+.autoclaude/
+`
+	claudeignorePath := ".claudeignore"
+	// Only create if it doesn't exist, or append if it does
+	if _, err := os.Stat(claudeignorePath); os.IsNotExist(err) {
+		if err := os.WriteFile(claudeignorePath, []byte(claudeignoreContent), 0644); err != nil {
+			return fmt.Errorf("failed to create .claudeignore: %w", err)
+		}
+	}
+
 	return nil
 }
 

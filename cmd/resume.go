@@ -11,6 +11,8 @@ import (
 	"go.coldcutz.net/autoclaude/internal/tmux"
 )
 
+// claude is used for CheckInstalled
+
 var resumeCmd = &cobra.Command{
 	Use:   "resume",
 	Short: "Resume from saved state",
@@ -89,15 +91,20 @@ func runResume(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unexpected state: %s", s.Step)
 	}
 
+	// Write prompt to file
+	promptPath, err := prompt.WriteCurrentPrompt(promptContent)
+	if err != nil {
+		return fmt.Errorf("failed to write current prompt: %w", err)
+	}
+
 	// Get working directory
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Build and run command
-	claudeCmd := claude.BuildCommand(promptContent)
-	if err := tmux.RunAndAttach(wd, claudeCmd); err != nil {
+	// Run Claude with prompt file
+	if err := tmux.RunClaudeWithPromptFile(wd, promptPath, false); err != nil {
 		return fmt.Errorf("failed to resume: %w", err)
 	}
 
