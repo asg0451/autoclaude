@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.coldcutz.net/autoclaude/internal/claude"
 	"go.coldcutz.net/autoclaude/internal/state"
 )
 
@@ -83,6 +84,9 @@ func runContinue(cmd *cobra.Command, args []string) error {
 
 	// Mark that this step completed
 	s.Save()
+
+	// Kill Claude process to ensure it exits and returns control to autoclaude
+	claude.KillClaude()
 
 	// Allow Claude to stop - the outer loop in `run` will handle next steps
 	return outputAllow()

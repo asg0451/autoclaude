@@ -50,6 +50,9 @@ func CheckInstalled() error {
 	return nil
 }
 
+// PidFile is where we store the current Claude process PID
+const PidFile = ".autoclaude/claude.pid"
+
 // RunInteractive runs Claude interactively with the given prompt and permission mode
 // permissionMode can be "acceptEdits", "plan", or empty for default
 func RunInteractive(prompt string, permissionMode string) error {
@@ -64,7 +67,36 @@ func RunInteractive(prompt string, permissionMode string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// Save PID so hooks can kill the process if needed
+	os.WriteFile(PidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), 0644)
+	defer os.Remove(PidFile)
+
+	return cmd.Wait()
+}
+
+// KillClaude kills the currently running Claude process using the saved PID
+func KillClaude() error {
+	data, err := os.ReadFile(PidFile)
+	if err != nil {
+		return fmt.Errorf("no Claude process found: %w", err)
+	}
+
+	var pid int
+	if _, err := fmt.Sscanf(string(data), "%d", &pid); err != nil {
+		return fmt.Errorf("invalid PID: %w", err)
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("process not found: %w", err)
+	}
+
+	// Send SIGTERM for graceful shutdown
+	return process.Signal(os.Interrupt)
 }
 
 // RunInteractiveWithPromptFile runs Claude interactively reading prompt from a file

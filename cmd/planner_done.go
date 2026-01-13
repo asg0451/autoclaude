@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
+	"go.coldcutz.net/autoclaude/internal/claude"
 )
 
 // PlannerHookInput represents the input from Claude Code stop hook
 type PlannerHookInput struct {
-	SessionID       string `json:"session_id"`
-	TranscriptPath  string `json:"transcript_path"`
-	StopHookActive  bool   `json:"stop_hook_active"`
-	StopReason      string `json:"stop_reason"`
+	SessionID            string `json:"session_id"`
+	TranscriptPath       string `json:"transcript_path"`
+	StopHookActive       bool   `json:"stop_hook_active"`
+	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
 }
 
@@ -49,20 +49,11 @@ func runPlannerDone(cmd *cobra.Command, args []string) error {
 		return outputPlannerAllow()
 	}
 
-	// Check if the planner is asking for confirmation (indicates plan is complete)
-	// The planner ends with asking if the plan looks good
-	if hookInput.LastAssistantMessage != "" {
-		msg := strings.ToLower(hookInput.LastAssistantMessage)
-		if strings.Contains(msg, "plan look") ||
-		   strings.Contains(msg, "ready") ||
-		   strings.Contains(msg, "proceed") ||
-		   strings.Contains(msg, "adjust") {
-			// Plan is complete, allow exit
-			return outputPlannerAllow()
-		}
-	}
+	// Kill Claude process to ensure it exits
+	// The stop hook fires when Claude pauses, but Claude might continue
+	// So we forcibly kill it to return control to autoclaude
+	claude.KillClaude()
 
-	// Default: allow exit
 	return outputPlannerAllow()
 }
 

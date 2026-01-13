@@ -42,10 +42,21 @@ type Permissions struct {
 
 // Hooks represents the hooks section
 type Hooks struct {
-	Stop []Hook `json:"Stop,omitempty"`
+	Stop []HookConfig `json:"Stop,omitempty"`
 }
 
-// Hook represents an individual hook
+// HookConfig represents a hook configuration with matcher
+type HookConfig struct {
+	Matcher *HookMatcher `json:"matcher,omitempty"`
+	Hooks   []Hook       `json:"hooks"`
+}
+
+// HookMatcher specifies when hooks should run
+type HookMatcher struct {
+	// For Stop hooks, matcher can be empty to match all stops
+}
+
+// Hook represents an individual hook action
 type Hook struct {
 	Type    string `json:"type"`
 	Command string `json:"command,omitempty"`
@@ -158,23 +169,25 @@ func MergeSettings(baseline, existing *ClaudeSettings) *ClaudeSettings {
 
 // AddStopHook adds the autoclaude stop hook to settings
 func AddStopHook(settings *ClaudeSettings, autoclaudePath string) {
-	hook := Hook{
-		Type:    "command",
-		Command: fmt.Sprintf("%s _continue", autoclaudePath),
-	}
+	expectedCmd := fmt.Sprintf("%s _continue", autoclaudePath)
 
 	if settings.Hooks == nil {
 		settings.Hooks = &Hooks{}
 	}
 
 	// Check if we already have our hook
-	for _, h := range settings.Hooks.Stop {
-		if h.Command == hook.Command {
-			return // Already configured
+	for _, hc := range settings.Hooks.Stop {
+		for _, h := range hc.Hooks {
+			if h.Command == expectedCmd {
+				return // Already configured
+			}
 		}
 	}
 
-	settings.Hooks.Stop = append(settings.Hooks.Stop, hook)
+	hookConfig := HookConfig{
+		Hooks: []Hook{{Type: "command", Command: expectedCmd}},
+	}
+	settings.Hooks.Stop = append(settings.Hooks.Stop, hookConfig)
 }
 
 // Save saves the settings to the Claude settings file
@@ -234,43 +247,30 @@ func RemoveStopHook(autoclaudePath string) error {
 	}
 
 	expectedCmd := fmt.Sprintf("%s _continue", autoclaudePath)
-	var newStopHooks []Hook
-	for _, h := range existing.Hooks.Stop {
-		if h.Command != expectedCmd {
-			newStopHooks = append(newStopHooks, h)
-		}
-	}
-	existing.Hooks.Stop = newStopHooks
+	existing.Hooks.Stop = filterOutCommand(existing.Hooks.Stop, expectedCmd)
 
 	return Save(existing)
 }
 
 // SetupPlannerStopHook adds a stop hook that exits when planner asks for confirmation
 func SetupPlannerStopHook(autoclaudePath string) error {
+	// Remove any existing planner hook first
+	RemovePlannerStopHook(autoclaudePath)
+
 	existing, err := LoadExisting()
 	if err != nil {
 		return err
 	}
 
-	hook := Hook{
-		Type:    "command",
-		Command: fmt.Sprintf("%s _planner-done", autoclaudePath),
-	}
-
 	if existing.Hooks == nil {
 		existing.Hooks = &Hooks{}
 	}
 
-	// Remove any existing planner hook first
-	RemovePlannerStopHook(autoclaudePath)
-
-	// Reload after removal
-	existing, _ = LoadExisting()
-	if existing.Hooks == nil {
-		existing.Hooks = &Hooks{}
+	expectedCmd := fmt.Sprintf("%s _planner-done", autoclaudePath)
+	hookConfig := HookConfig{
+		Hooks: []Hook{{Type: "command", Command: expectedCmd}},
 	}
-
-	existing.Hooks.Stop = append(existing.Hooks.Stop, hook)
+	existing.Hooks.Stop = append(existing.Hooks.Stop, hookConfig)
 	return Save(existing)
 }
 
@@ -286,15 +286,26 @@ func RemovePlannerStopHook(autoclaudePath string) error {
 	}
 
 	expectedCmd := fmt.Sprintf("%s _planner-done", autoclaudePath)
-	var newStopHooks []Hook
-	for _, h := range existing.Hooks.Stop {
-		if h.Command != expectedCmd {
-			newStopHooks = append(newStopHooks, h)
-		}
-	}
-	existing.Hooks.Stop = newStopHooks
+	existing.Hooks.Stop = filterOutCommand(existing.Hooks.Stop, expectedCmd)
 
 	return Save(existing)
+}
+
+// filterOutCommand removes hook configs that contain only the specified command
+func filterOutCommand(hookConfigs []HookConfig, cmd string) []HookConfig {
+	var result []HookConfig
+	for _, hc := range hookConfigs {
+		var filteredHooks []Hook
+		for _, h := range hc.Hooks {
+			if h.Command != cmd {
+				filteredHooks = append(filteredHooks, h)
+			}
+		}
+		if len(filteredHooks) > 0 {
+			result = append(result, HookConfig{Matcher: hc.Matcher, Hooks: filteredHooks})
+		}
+	}
+	return result
 }
 
 // EnsurePromptsDir creates the prompts directory if it doesn't exist
