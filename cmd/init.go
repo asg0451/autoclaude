@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
@@ -98,6 +99,26 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create .autoclaude directory: %w", err)
 	}
 
+	// Step 1b: Generate language-specific coding guidelines
+	fmt.Println("  Detecting languages...")
+	langs := state.DetectLanguages()
+	if len(langs) == 0 {
+		// No languages detected, ask user
+		fmt.Println("  No languages detected in repo.")
+		userLangs, err := promptForLanguages()
+		if err != nil {
+			return fmt.Errorf("failed to get languages: %w", err)
+		}
+		langs = userLangs
+	}
+	if len(langs) > 0 {
+		fmt.Printf("  Languages: %v\n", langs)
+	}
+	fmt.Println("  Generating coding guidelines...")
+	if err := state.WriteGuidelinesForLanguages(langs); err != nil {
+		return fmt.Errorf("failed to write coding guidelines: %w", err)
+	}
+
 	// Step 2: Generate and save prompts
 	fmt.Println("  Generating prompts...")
 	if err := prompt.SavePrompts(params); err != nil {
@@ -150,6 +171,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// Remove planner stop hook
 		if err := config.RemovePlannerStopHook(autoclaudePath); err != nil {
 			// Non-fatal, continue
+		}
+
+		// Commit all planner output
+		fmt.Println("  Committing planner output...")
+		if err := commitPlannerOutput(); err != nil {
+			fmt.Printf("  Warning: failed to commit planner output: %v\n", err)
 		}
 	}
 
@@ -239,4 +266,63 @@ func initGitRepo() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// commitPlannerOutput commits all files created by the planner
+func commitPlannerOutput() error {
+	// Stage all changes
+	addCmd := exec.Command("git", "add", "-A")
+	if err := addCmd.Run(); err != nil {
+		return fmt.Errorf("git add failed: %w", err)
+	}
+
+	// Check if there's anything to commit
+	statusCmd := exec.Command("git", "status", "--porcelain")
+	output, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("git status failed: %w", err)
+	}
+	if len(output) == 0 {
+		return nil // Nothing to commit
+	}
+
+	// Commit
+	commitCmd := exec.Command("git", "commit", "-m", "autoclaude: initial plan and TODOs")
+	if err := commitCmd.Run(); err != nil {
+		return fmt.Errorf("git commit failed: %w", err)
+	}
+
+	return nil
+}
+
+// promptForLanguages asks the user which languages will be used
+func promptForLanguages() ([]state.Language, error) {
+	rl, err := readline.New("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize readline: %w", err)
+	}
+	defer rl.Close()
+
+	fmt.Println("  Available: go, rust, python, node/typescript")
+	rl.SetPrompt("  Which language(s) will you use? (comma-separated, or Enter to skip) ")
+	input, err := rl.Readline()
+	if err != nil {
+		return nil, err
+	}
+
+	if input == "" {
+		return nil, nil
+	}
+
+	var langs []state.Language
+	for _, part := range strings.Split(input, ",") {
+		part = strings.TrimSpace(part)
+		if lang, ok := state.ParseLanguage(part); ok {
+			langs = append(langs, lang)
+		} else if part != "" {
+			fmt.Printf("  (unknown language: %s, skipping)\n", part)
+		}
+	}
+
+	return langs, nil
 }

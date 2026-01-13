@@ -29,6 +29,19 @@ type State struct {
 	LastCommit    string `json:"lastCommit,omitempty"`
 	RetryCount    int    `json:"retryCount,omitempty"`
 	LastError     string `json:"lastError,omitempty"`
+	Stats         *Stats `json:"stats,omitempty"`
+}
+
+// Stats tracks diagnostic information about the run
+type Stats struct {
+	ClaudeRuns      int `json:"claudeRuns"`      // Total Claude invocations
+	TodosCompleted  int `json:"todosCompleted"`  // TODOs successfully completed
+	TodosAttempted  int `json:"todosAttempted"`  // TODOs attempted
+	CriticApprovals int `json:"criticApprovals"` // Times critic said APPROVED
+	CriticRejections int `json:"criticRejections"` // Times critic said NEEDS_FIXES
+	CriticMinor     int `json:"criticMinor"`     // Times critic said MINOR_ISSUES
+	FixAttempts     int `json:"fixAttempts"`     // Number of fix attempts
+	FixSuccesses    int `json:"fixSuccesses"`    // Fixes that led to approval
 }
 
 const (

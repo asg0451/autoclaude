@@ -21,6 +21,7 @@ const coderTemplate = `You are working on: {{GOAL}}
 ## Context
 - Read .autoclaude/plan.md for the overall architecture and design decisions
 - Read .autoclaude/TODO.md for the task list
+- Read .autoclaude/coding-guidelines.md for language-specific coding standards
 
 Work on the highest priority incomplete item in TODO.md.
 
@@ -30,6 +31,7 @@ Work on the highest priority incomplete item in TODO.md.
 3. Commit after completing each task with a descriptive message
 4. Update .autoclaude/TODO.md: check off completed items (change "- [ ]" to "- [x]"), do NOT delete them
 5. Update .autoclaude/STATUS.md with current progress
+6. ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
 {{CONSTRAINTS}}
 
 ## When Done
@@ -43,12 +45,17 @@ const criticTemplate = `You are a code reviewer. Review the latest changes in th
 ## Context
 - Goal: {{GOAL}}
 - Architecture: Read .autoclaude/plan.md for design decisions
+- Standards: Read .autoclaude/coding-guidelines.md for language-specific requirements
 
 ## Review Checklist
 1. Correctness: Does the code work as intended?
 2. Tests: Are there adequate tests? Do they pass? Run: ` + "`{{TEST_CMD}}`" + `
 3. Security: Any vulnerabilities introduced?
 4. Edge cases: Are they handled?
+5. Coding guidelines: Does the code follow .autoclaude/coding-guidelines.md?
+
+## Important
+ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
 
 ## Actions
 After your review, write your verdict to .autoclaude/critic_verdict.md:
@@ -71,6 +78,10 @@ NEEDS_FIXES
 ## Test Output (if relevant)
 <paste failing test output here>
 
+## Reproduction (if you created one)
+If you wrote code/tests to reproduce the issue, include the file path here.
+DO NOT delete reproduction code - keep it for the fixer to use.
+
 ## How to Fix
 Specific instructions for the coder to fix these issues.
 ` + "```" + `
@@ -92,6 +103,7 @@ const fixerTemplate = `You are fixing issues found during code review.
 ## Context
 - Goal: {{GOAL}}
 - Architecture: Read .autoclaude/plan.md for design decisions
+- Standards: Read .autoclaude/coding-guidelines.md for language-specific requirements
 - Current TODO being fixed: {{CURRENT_TODO}}
 
 ## Critic Feedback
@@ -99,12 +111,16 @@ The critic found the following issues that must be fixed:
 
 {{FIX_INSTRUCTIONS}}
 
+Note: If the critic created reproduction code/tests to demonstrate the issue, those files still exist.
+Use them to verify your fix works before committing.
+
 ## Rules
 1. Fix ONLY the issues described above for the current TODO
 2. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
 3. Do NOT declare success until tests pass
 4. Do NOT move on to other TODOs - focus only on fixing these issues
 5. Commit your fixes with a descriptive message
+6. ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
 
 ## When Done
 Once the issues are fixed and tests pass, STOP IMMEDIATELY.
@@ -123,6 +139,9 @@ const evaluatorTemplate = `You are evaluating if the goal is achieved.
 1. Review .autoclaude/TODO.md - are all critical items complete?
 2. Run the test suite: ` + "`{{TEST_CMD}}`" + `
 3. Manually verify the goal is met by examining the implementation
+
+## Important
+ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
 
 ## Actions
 - If goal is fully achieved: Say "GOAL_COMPLETE" and stop
@@ -213,6 +232,7 @@ List of files with brief descriptions
 - Err on the side of asking questions rather than making assumptions
 - The user is your partner in this process, involve them in decisions
 - After writing the plan and TODOs, ask the user if the plan looks good
+- ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
 `
 
 // expandTemplate replaces template variables with values

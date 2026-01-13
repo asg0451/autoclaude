@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -62,28 +60,10 @@ func runContinue(cmd *cobra.Command, args []string) error {
 		return outputAllow()
 	}
 
-	s, err := state.Load()
-	if err != nil {
-		return outputAllow()
-	}
-
-	// Auto-commit any pending changes
-	if s.Step == state.StepCoder {
-		commitMsg := fmt.Sprintf("autoclaude: coder iteration %d", s.Iteration)
-		if err := gitCommit(commitMsg); err != nil {
-			appendToNotes(fmt.Sprintf("Failed to auto-commit: %v", err))
-		} else {
-			s.LastCommit = getLastCommitHash()
-		}
-	}
-
 	// Save transcript path for potential debugging
 	if hookInput.TranscriptPath != "" {
 		appendToNotes(fmt.Sprintf("Session ended, transcript: %s", hookInput.TranscriptPath))
 	}
-
-	// Mark that this step completed
-	s.Save()
 
 	// Kill Claude process to ensure it exits and returns control to autoclaude
 	claude.KillClaude()
@@ -98,40 +78,6 @@ func outputAllow() error {
 	data, _ := json.Marshal(output)
 	fmt.Println(string(data))
 	return nil
-}
-
-// gitCommit makes a git commit with the given message
-func gitCommit(message string) error {
-	// Check if there are changes to commit
-	statusCmd := exec.Command("git", "status", "--porcelain")
-	output, err := statusCmd.Output()
-	if err != nil {
-		return err
-	}
-
-	if len(strings.TrimSpace(string(output))) == 0 {
-		return nil // No changes to commit
-	}
-
-	// Add all changes
-	addCmd := exec.Command("git", "add", "-A")
-	if err := addCmd.Run(); err != nil {
-		return err
-	}
-
-	// Commit
-	commitCmd := exec.Command("git", "commit", "-m", message)
-	return commitCmd.Run()
-}
-
-// getLastCommitHash gets the hash of the last commit
-func getLastCommitHash() string {
-	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(output))
 }
 
 // appendToNotes appends a note to NOTES.md
