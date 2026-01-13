@@ -28,10 +28,11 @@ Work on the highest priority incomplete item in TODO.md.
 ## Rules
 1. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
 2. Do NOT declare success until tests pass
-3. Commit ALL changes after completing each task: ` + "`git add . && git commit -m \"descriptive message\"`" + `
+3. Commit ALL changes (including .autoclaude/) after each task: ` + "`git add . && git commit -m \"message\"`" + ` - the dot means EVERYTHING
 4. Update .autoclaude/TODO.md: check off completed items (change "- [ ]" to "- [x]"), do NOT delete them
 5. Update .autoclaude/STATUS.md with current progress
 6. ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
+7. AVOID using awk - it triggers an unskippable permissions check
 {{CONSTRAINTS}}
 
 ## When Done
@@ -56,6 +57,7 @@ const criticTemplate = `You are a code reviewer. Review the latest changes in th
 
 ## Important
 ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
+AVOID using awk - it triggers an unskippable permissions check.
 
 ## Actions
 After your review, write your verdict to .autoclaude/critic_verdict.md:
@@ -107,6 +109,7 @@ const fixerTemplate = `You are fixing issues found during code review.
 ## IMPORTANT
 Use the Read and Write/Edit tools for ALL file operations.
 NEVER use cat, echo, heredocs, or shell redirection to write files.
+AVOID using awk - it triggers an unskippable permissions check.
 
 ## Context
 - Goal: {{GOAL}}
@@ -127,7 +130,7 @@ Use them to verify your fix works before committing.
 2. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
 3. Do NOT declare success until tests pass
 4. Do NOT move on to other TODOs - focus only on fixing these issues
-5. Commit ALL changes with: ` + "`git add . && git commit -m \"descriptive message\"`" + `
+5. Commit ALL changes (including .autoclaude/) with: ` + "`git add . && git commit -m \"message\"`" + ` - the dot means EVERYTHING
 6. ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
 
 ## When Done
@@ -150,6 +153,7 @@ const evaluatorTemplate = `You are evaluating if the goal is achieved.
 
 ## Important
 ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
+AVOID using awk - it triggers an unskippable permissions check.
 
 ## Actions
 - If goal is fully achieved: Say "GOAL_COMPLETE" and stop
@@ -241,6 +245,7 @@ List of files with brief descriptions
 - The user is your partner in this process, involve them in decisions
 - After writing the plan and TODOs, ask the user if the plan looks good
 - ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
+- AVOID using awk - it triggers an unskippable permissions check
 `
 
 // expandTemplate replaces template variables with values

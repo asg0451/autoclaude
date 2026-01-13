@@ -123,8 +123,9 @@ func goGuidelines() string {
 	return `
 ## Go
 
-### Formatting
+### Formatting & Linting
 - ALWAYS run ` + "`gofmt -w .`" + ` before committing
+- Critic MUST run ` + "`golangci-lint run`" + ` as part of code review
 
 ### Panic Safety
 - ALWAYS use ` + "`defer`" + ` for mutex unlock: ` + "`mu.Lock(); defer mu.Unlock()`" + `

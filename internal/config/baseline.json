@@ -50,7 +50,8 @@
       "Bash(go test:*)",
       "Bash(cat:*)",
       "Bash(xargs ls:*)",
-      "Bash(gofmt:*)"
+      "Bash(gofmt:*)",
+      "Bash(golangci-lint:*)"
     ]
   }
 }
