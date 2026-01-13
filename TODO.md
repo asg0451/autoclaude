@@ -1,0 +1,1 @@
+- [ ] the planner claude shouldnt exit immediately in case the user wants to iterate more. instruct the user to ctrl-c the planner claude when theyre done then we resume

@@ -12,7 +12,7 @@ import (
 	"go.coldcutz.net/autoclaude/internal/state"
 )
 
-var runMaxIterations int
+const maxFixRetries = 3
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -20,10 +20,12 @@ var runCmd = &cobra.Command{
 	Long: `Start the autoclaude coder-critic loop.
 
 The loop proceeds as follows:
-1. Coder: Works on TODOs (with stop hook for auto-commit)
-2. Critic: Reviews changes in fresh session (no hook)
-3. Repeat until all TODOs complete or max iterations reached
-4. Evaluator: Checks if overall goal is met
+1. Coder: Works on highest priority TODO
+2. Critic: Reviews changes
+   - APPROVED or MINOR_ISSUES: Move to next TODO
+   - NEEDS_FIXES: Coder retries (up to 3 times)
+3. Repeat until all TODOs complete
+4. Evaluator: Final check that goal is met
 
 Each phase runs in a fresh Claude session to maintain quality.`,
 	RunE: runRun,
@@ -31,7 +33,6 @@ Each phase runs in a fresh Claude session to maintain quality.`,
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().IntVarP(&runMaxIterations, "max-iterations", "m", 0, "Override max iterations (0 = use init value)")
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
@@ -51,14 +52,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
 
-	// Override max iterations if specified
-	if runMaxIterations > 0 {
-		s.MaxIterations = runMaxIterations
-	}
-
-	// Reset to start of loop
+	// Reset state for new run
 	s.Step = state.StepCoder
-	s.Iteration = 1
+	s.Iteration = 0
 	s.RetryCount = 0
 	s.LastError = ""
 	if err := s.Save(); err != nil {
@@ -70,61 +66,108 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get autoclaude path: %w", err)
 	}
 
+	// Build prompt params for generating fix prompts
+	params := prompt.PromptParams{
+		Goal:    s.Goal,
+		TestCmd: s.TestCmd,
+	}
+
 	fmt.Println("Starting autoclaude loop...")
 	fmt.Printf("  Goal: %s\n", s.Goal)
 	fmt.Printf("  Test command: %s\n", s.TestCmd)
-	fmt.Printf("  Max iterations: %d\n", s.MaxIterations)
 	fmt.Println()
 
-	// Main orchestration loop
-	for s.Iteration <= s.MaxIterations {
+	// Enable stop hook for all phases (kills Claude when it stops to return control)
+	if err := config.SetupStopHook(autoclaudePath); err != nil {
+		return fmt.Errorf("failed to setup stop hook: %w", err)
+	}
+	defer config.RemoveStopHook(autoclaudePath)
+
+	// Outer loop: process TODOs until all complete (no limit)
+	for hasIncompleteTodos() {
+		s.Iteration++
+		s.RetryCount = 0
+		s.Save()
+
+		// Get next TODO and save it as current (before coder checks it off)
+		currentTodo := state.GetNextTodo()
+		state.SetCurrentTodo(currentTodo)
+
 		// === CODER PHASE ===
-		fmt.Printf("=== Iteration %d/%d: CODER ===\n", s.Iteration, s.MaxIterations)
+		fmt.Printf("\n=== TODO %d: CODER ===\n", s.Iteration)
+		fmt.Printf("  Working on: %s\n", currentTodo)
 		s.Step = state.StepCoder
 		s.Save()
-		s.UpdateStatus(fmt.Sprintf("Running coder (iteration %d)...", s.Iteration))
+		s.UpdateStatus(fmt.Sprintf("Working on: %s", currentTodo))
 
-		// Enable stop hook for coder (for auto-commit)
-		if err := config.SetupStopHook(autoclaudePath); err != nil {
-			return fmt.Errorf("failed to setup stop hook: %w", err)
-		}
-
-		// Run coder
 		coderPrompt, _ := prompt.LoadCoder()
 		promptPath, _ := prompt.WriteCurrentPrompt(coderPrompt)
 		if err := runClaudePhase(promptPath); err != nil {
 			return fmt.Errorf("coder phase failed: %w", err)
 		}
 
-		// Remove stop hook before critic
-		if err := config.RemoveStopHook(autoclaudePath); err != nil {
-			// Non-fatal, continue
+		// Inner loop: critic review with fix retries (max 3)
+		for retry := 0; retry < maxFixRetries; retry++ {
+			// === CRITIC PHASE ===
+			fmt.Printf("=== TODO %d: CRITIC (attempt %d/%d) ===\n", s.Iteration, retry+1, maxFixRetries)
+			s.Step = state.StepCritic
+			s.RetryCount = retry
+			s.Save()
+			s.UpdateStatus("Running critic review...")
+
+			state.ClearCriticVerdict()
+
+			criticPrompt, _ := prompt.LoadCritic()
+			promptPath, _ = prompt.WriteCurrentPrompt(criticPrompt)
+			if err := runClaudePhase(promptPath); err != nil {
+				return fmt.Errorf("critic phase failed: %w", err)
+			}
+
+			verdict, content := state.GetCriticVerdict()
+
+			switch verdict {
+			case state.VerdictApproved:
+				fmt.Println("  ✓ Critic: APPROVED")
+				goto nextTodo
+
+			case state.VerdictMinorIssues:
+				fmt.Println("  ✓ Critic: MINOR_ISSUES (added to TODOs for later)")
+				goto nextTodo
+
+			case state.VerdictNeedsFixes:
+				fmt.Printf("  ✗ Critic: NEEDS_FIXES (retry %d/%d)\n", retry+1, maxFixRetries)
+				if retry < maxFixRetries-1 {
+					// Run fixer with critic's feedback
+					fmt.Println("=== FIXER ===")
+					s.Step = state.StepCoder
+					s.Save()
+					s.UpdateStatus(fmt.Sprintf("Fixing: %s", currentTodo))
+
+					// Use state.GetCurrentTodo() to read from file (robust across restarts)
+					fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
+					promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
+					if err := runClaudePhase(promptPath); err != nil {
+						return fmt.Errorf("fixer phase failed: %w", err)
+					}
+				}
+
+			default:
+				fmt.Println("  ? Critic: No clear verdict, assuming needs review")
+				if retry < maxFixRetries-1 {
+					continue
+				}
+			}
 		}
 
-		// === CRITIC PHASE ===
-		fmt.Printf("=== Iteration %d/%d: CRITIC ===\n", s.Iteration, s.MaxIterations)
-		s.Step = state.StepCritic
-		s.Save()
-		s.UpdateStatus("Running critic review...")
+		// Exhausted retries
+		fmt.Printf("  ⚠ Max retries (%d) reached for TODO %d, moving on\n", maxFixRetries, s.Iteration)
 
-		// Run critic (fresh session, no hook)
-		criticPrompt, _ := prompt.LoadCritic()
-		promptPath, _ = prompt.WriteCurrentPrompt(criticPrompt)
-		if err := runClaudePhase(promptPath); err != nil {
-			return fmt.Errorf("critic phase failed: %w", err)
-		}
-
-		// Check if there are remaining TODOs
-		if !hasIncompleteTodos() {
-			break // Move to evaluator
-		}
-
-		s.Iteration++
-		s.Save()
+	nextTodo:
+		state.ClearCurrentTodo()
 	}
 
 	// === EVALUATOR PHASE ===
-	fmt.Println("=== EVALUATOR ===")
+	fmt.Println("\n=== EVALUATOR ===")
 	s.Step = state.StepEvaluator
 	s.Save()
 	s.UpdateStatus("Running evaluator...")
@@ -136,14 +179,15 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if evaluator added more TODOs
-	if hasIncompleteTodos() && s.Iteration < s.MaxIterations {
-		fmt.Println("Evaluator added more TODOs. Run 'autoclaude run' again to continue.")
-	} else {
-		s.Step = state.StepDone
-		s.Save()
-		s.UpdateStatus("Complete!")
-		fmt.Println("=== COMPLETE ===")
+	if hasIncompleteTodos() {
+		fmt.Println("Evaluator added more TODOs. Continuing...")
+		return runRun(cmd, args) // Recursive call to process new TODOs
 	}
+
+	s.Step = state.StepDone
+	s.Save()
+	s.UpdateStatus("Complete!")
+	fmt.Println("\n=== COMPLETE ===")
 
 	return nil
 }

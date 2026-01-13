@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Step represents the current step in the coder-critic loop
@@ -31,11 +32,13 @@ type State struct {
 }
 
 const (
-	AutoclaudeDir = ".autoclaude"
-	StateFile     = "state.json"
-	TodoFile      = "TODO.md"
-	NotesFile     = "NOTES.md"
-	StatusFile    = "STATUS.md"
+	AutoclaudeDir     = ".autoclaude"
+	StateFile         = "state.json"
+	TodoFile          = "TODO.md"
+	NotesFile         = "NOTES.md"
+	StatusFile        = "STATUS.md"
+	CriticVerdictFile = "critic_verdict.md"
+	CurrentTodoFile   = "current_todo.txt"
 )
 
 // StateDir returns the path to the .autoclaude directory
@@ -61,6 +64,89 @@ func NotesPath() string {
 // StatusPath returns the path to the STATUS.md file
 func StatusPath() string {
 	return filepath.Join(AutoclaudeDir, StatusFile)
+}
+
+// CriticVerdictPath returns the path to the critic_verdict.md file
+func CriticVerdictPath() string {
+	return filepath.Join(AutoclaudeDir, CriticVerdictFile)
+}
+
+// CriticVerdict represents the critic's decision
+type CriticVerdict string
+
+const (
+	VerdictApproved    CriticVerdict = "APPROVED"
+	VerdictNeedsFixes  CriticVerdict = "NEEDS_FIXES"
+	VerdictMinorIssues CriticVerdict = "MINOR_ISSUES"
+	VerdictUnknown     CriticVerdict = "UNKNOWN"
+)
+
+// GetCriticVerdict reads and parses the critic verdict file
+// Returns the verdict and the full content (for fix instructions)
+func GetCriticVerdict() (CriticVerdict, string) {
+	data, err := os.ReadFile(CriticVerdictPath())
+	if err != nil {
+		return VerdictUnknown, ""
+	}
+	content := string(data)
+
+	if len(content) >= 11 && content[:11] == "NEEDS_FIXES" {
+		return VerdictNeedsFixes, content
+	}
+	if len(content) >= 12 && content[:12] == "MINOR_ISSUES" {
+		return VerdictMinorIssues, content
+	}
+	if len(content) >= 8 && content[:8] == "APPROVED" {
+		return VerdictApproved, content
+	}
+	return VerdictUnknown, content
+}
+
+// ClearCriticVerdict removes the critic verdict file
+func ClearCriticVerdict() {
+	os.Remove(CriticVerdictPath())
+}
+
+// CurrentTodoPath returns the path to the current_todo.txt file
+func CurrentTodoPath() string {
+	return filepath.Join(AutoclaudeDir, CurrentTodoFile)
+}
+
+// GetNextTodo returns the first incomplete TODO item from TODO.md
+func GetNextTodo() string {
+	data, err := os.ReadFile(TodoPath())
+	if err != nil {
+		return "(unknown)"
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "- [ ]") {
+			// Return the TODO text without the checkbox
+			return strings.TrimSpace(strings.TrimPrefix(trimmed, "- [ ]"))
+		}
+	}
+	return "(no incomplete TODOs)"
+}
+
+// SetCurrentTodo saves the current TODO being worked on to a file
+func SetCurrentTodo(todo string) {
+	os.WriteFile(CurrentTodoPath(), []byte(todo), 0644)
+}
+
+// GetCurrentTodo returns the TODO currently being worked on (from file)
+func GetCurrentTodo() string {
+	data, err := os.ReadFile(CurrentTodoPath())
+	if err != nil {
+		return "(unknown)"
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// ClearCurrentTodo removes the current todo file
+func ClearCurrentTodo() {
+	os.Remove(CurrentTodoPath())
 }
 
 // NewState creates a new state with default values

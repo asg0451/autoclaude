@@ -18,8 +18,11 @@ type PromptParams struct {
 // coderTemplate is the template for the coder prompt
 const coderTemplate = `You are working on: {{GOAL}}
 
-## Current TODOs
-Read .autoclaude/TODO.md and work on the highest priority incomplete item.
+## Context
+- Read .autoclaude/plan.md for the overall architecture and design decisions
+- Read .autoclaude/TODO.md for the task list
+
+Work on the highest priority incomplete item in TODO.md.
 
 ## Rules
 1. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
@@ -27,7 +30,6 @@ Read .autoclaude/TODO.md and work on the highest priority incomplete item.
 3. Commit after completing each task with a descriptive message
 4. Update .autoclaude/TODO.md: check off completed items (change "- [ ]" to "- [x]"), do NOT delete them
 5. Update .autoclaude/STATUS.md with current progress
-6. Ignore .autoclaude/ directory contents except for TODO.md, NOTES.md, STATUS.md
 {{CONSTRAINTS}}
 
 ## When Done
@@ -38,8 +40,9 @@ The orchestrator will handle the next steps.
 // criticTemplate is the template for the critic prompt
 const criticTemplate = `You are a code reviewer. Review the latest changes in this repository.
 
-## Goal Context
-The overall goal is: {{GOAL}}
+## Context
+- Goal: {{GOAL}}
+- Architecture: Read .autoclaude/plan.md for design decisions
 
 ## Review Checklist
 1. Correctness: Does the code work as intended?
@@ -48,11 +51,63 @@ The overall goal is: {{GOAL}}
 4. Edge cases: Are they handled?
 
 ## Actions
-- If correctness issues found: Describe specific fixes needed, then stop
-- If minor issues/tech debt found: Add to .autoclaude/NOTES.md
-- If changes are good: Say "APPROVED" and stop
+After your review, write your verdict to .autoclaude/critic_verdict.md:
 
-Be thorough but pragmatic. Focus on correctness over style.
+**If APPROVED** (code is correct, tests pass):
+` + "```" + `
+APPROVED
+
+Brief summary of what was reviewed.
+` + "```" + `
+
+**If NEEDS_FIXES** (blocking issues - tests fail, bugs, security issues):
+` + "```" + `
+NEEDS_FIXES
+
+## Issues
+- Issue 1: detailed description
+- Issue 2: detailed description
+
+## Test Output (if relevant)
+<paste failing test output here>
+
+## How to Fix
+Specific instructions for the coder to fix these issues.
+` + "```" + `
+
+**If MINOR_ISSUES** (non-blocking - style, tech debt, nice-to-haves):
+` + "```" + `
+MINOR_ISSUES
+
+Brief summary. Adding to TODOs for later.
+` + "```" + `
+Then add the minor issues to .autoclaude/TODO.md for later.
+
+Be thorough but pragmatic. NEEDS_FIXES is only for blocking issues that prevent the code from working correctly.
+`
+
+// fixerTemplate is the template for when coder needs to fix issues found by critic
+const fixerTemplate = `You are fixing issues found during code review.
+
+## Context
+- Goal: {{GOAL}}
+- Architecture: Read .autoclaude/plan.md for design decisions
+- Current TODO being fixed: {{CURRENT_TODO}}
+
+## Critic Feedback
+The critic found the following issues that must be fixed:
+
+{{FIX_INSTRUCTIONS}}
+
+## Rules
+1. Fix ONLY the issues described above for the current TODO
+2. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
+3. Do NOT declare success until tests pass
+4. Do NOT move on to other TODOs - focus only on fixing these issues
+5. Commit your fixes with a descriptive message
+
+## When Done
+Once the issues are fixed and tests pass, STOP IMMEDIATELY.
 `
 
 // evaluatorTemplate is the template for the evaluator prompt
@@ -106,6 +161,7 @@ Work WITH the user to understand and refine the design before creating implement
 - Don't assume - when in doubt, ASK using AskUserQuestion
 
 Good questions to consider:
+- For Go projects: What should the module name be? (e.g., github.com/user/project)
 - What are the edge cases we need to handle?
 - Are there performance or scale considerations?
 - How should this integrate with existing code?
@@ -171,6 +227,16 @@ func expandTemplate(template string, params PromptParams) string {
 	}
 	result = strings.ReplaceAll(result, "{{CONSTRAINTS}}", constraintsSection)
 
+	return result
+}
+
+// GenerateFixer generates the fixer prompt with critic feedback
+func GenerateFixer(params PromptParams, fixInstructions string, currentTodo string) string {
+	result := fixerTemplate
+	result = strings.ReplaceAll(result, "{{GOAL}}", params.Goal)
+	result = strings.ReplaceAll(result, "{{TEST_CMD}}", params.TestCmd)
+	result = strings.ReplaceAll(result, "{{FIX_INSTRUCTIONS}}", fixInstructions)
+	result = strings.ReplaceAll(result, "{{CURRENT_TODO}}", currentTodo)
 	return result
 }
 

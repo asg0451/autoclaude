@@ -11,6 +11,7 @@
       "Bash(make generate-go:*)",
       "Bash(go mod tidy:*)",
       "Bash(git restore:*)",
+      "Bash(git reset:*)",
       "Bash(cargo check:*)",
       "Bash(cargo clean:*)",
       "Bash(cargo clippy:*)",
@@ -45,6 +46,7 @@
       "Bash(go vet:*)",
       "Bash(head:*)",
       "Bash(tree:*)",
+      "Bash(ls:*)",
       "Bash(go test:*)",
       "Bash(cat:*)"
     ]
