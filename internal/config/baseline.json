@@ -48,7 +48,8 @@
       "Bash(tree:*)",
       "Bash(ls:*)",
       "Bash(go test:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

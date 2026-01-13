@@ -100,6 +100,10 @@ Be thorough but pragmatic. NEEDS_FIXES is only for blocking issues that prevent 
 // fixerTemplate is the template for when coder needs to fix issues found by critic
 const fixerTemplate = `You are fixing issues found during code review.
 
+## IMPORTANT
+Use the Read and Write/Edit tools for ALL file operations.
+NEVER use cat, echo, heredocs, or shell redirection to write files.
+
 ## Context
 - Goal: {{GOAL}}
 - Architecture: Read .autoclaude/plan.md for design decisions
