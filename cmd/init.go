@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/chzyer/readline"
@@ -11,7 +12,6 @@ import (
 	"go.coldcutz.net/autoclaude/internal/config"
 	"go.coldcutz.net/autoclaude/internal/prompt"
 	"go.coldcutz.net/autoclaude/internal/state"
-	"go.coldcutz.net/autoclaude/internal/tmux"
 )
 
 var (
@@ -77,6 +77,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Initializing autoclaude...")
 
+	// Step 0: Ensure git repo exists
+	if !isGitRepo() {
+		fmt.Println("  Initializing git repository...")
+		if err := initGitRepo(); err != nil {
+			return fmt.Errorf("failed to initialize git repo: %w", err)
+		}
+	}
+
 	// Create prompt parameters
 	params := prompt.PromptParams{
 		Goal:        goal,
@@ -109,7 +117,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save state: %w", err)
 	}
 
-	// Step 5: Run planner to generate initial TODOs (interactive in tmux with plan mode)
+	// Step 5: Run planner to generate initial TODOs (interactive, inline with acceptEdits mode)
 	if !initSkipPlanner {
 		fmt.Println("  Running collaborative planner...")
 		fmt.Println("  (Claude will work with you to clarify the design)")
@@ -121,14 +129,27 @@ func runInit(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to save planner prompt: %w", err)
 		}
 
-		wd, err := os.Getwd()
+		// Get autoclaude path for stop hook
+		autoclaudePath, err := GetExecutablePath()
 		if err != nil {
-			return fmt.Errorf("failed to get working directory: %w", err)
+			return fmt.Errorf("failed to get autoclaude path: %w", err)
 		}
 
-		// Run Claude with the planner prompt file
-		if err := tmux.RunClaudeWithPromptFile(wd, plannerPath, false); err != nil {
+		// Set up planner stop hook (exits when planner asks for confirmation)
+		if err := config.SetupPlannerStopHook(autoclaudePath); err != nil {
+			return fmt.Errorf("failed to setup planner stop hook: %w", err)
+		}
+
+		// Run Claude inline with acceptEdits permission mode
+		if err := claude.RunInteractiveWithPromptFile(plannerPath, "acceptEdits"); err != nil {
+			// Clean up hook even on error
+			config.RemovePlannerStopHook(autoclaudePath)
 			return fmt.Errorf("failed to run planner: %w", err)
+		}
+
+		// Remove planner stop hook
+		if err := config.RemovePlannerStopHook(autoclaudePath); err != nil {
+			// Non-fatal, continue
 		}
 	}
 
@@ -204,4 +225,18 @@ func getExecutablePath() (string, error) {
 // GetExecutablePath is exported for use by other commands
 func GetExecutablePath() (string, error) {
 	return getExecutablePath()
+}
+
+// isGitRepo checks if the current directory is a git repository
+func isGitRepo() bool {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	return cmd.Run() == nil
+}
+
+// initGitRepo initializes a new git repository
+func initGitRepo() error {
+	cmd := exec.Command("git", "init")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

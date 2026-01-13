@@ -52,21 +52,23 @@ func Attach() error {
 // AttachAndWait attaches to the tmux session and waits for it to end
 // Returns when the session no longer exists
 func AttachAndWait() error {
-	// Attach in foreground (not exec, so we return when done)
-	cmd := exec.Command("tmux", "attach-session", "-t", SessionName)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	for SessionExists() {
+		// Attach in foreground (not exec, so we return when done)
+		cmd := exec.Command("tmux", "attach-session", "-t", SessionName)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
-	// This blocks until the user detaches or the session ends
-	err := cmd.Run()
+		// This blocks until the user detaches or the session ends
+		cmd.Run()
 
-	// If session ended, that's fine
-	if !SessionExists() {
-		return nil
+		// If user detached but session still exists, reattach
+		if SessionExists() {
+			fmt.Println("\n(Session still running. Press Enter to reattach, or kill session to abort)")
+			fmt.Scanln()
+		}
 	}
-
-	return err
+	return nil
 }
 
 // WaitForSessionEnd polls until the session no longer exists

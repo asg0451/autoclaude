@@ -10,7 +10,6 @@ import (
 	"go.coldcutz.net/autoclaude/internal/config"
 	"go.coldcutz.net/autoclaude/internal/prompt"
 	"go.coldcutz.net/autoclaude/internal/state"
-	"go.coldcutz.net/autoclaude/internal/tmux"
 )
 
 var runMaxIterations int
@@ -71,11 +70,6 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get autoclaude path: %w", err)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
 	fmt.Println("Starting autoclaude loop...")
 	fmt.Printf("  Goal: %s\n", s.Goal)
 	fmt.Printf("  Test command: %s\n", s.TestCmd)
@@ -98,7 +92,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		// Run coder
 		coderPrompt, _ := prompt.LoadCoder()
 		promptPath, _ := prompt.WriteCurrentPrompt(coderPrompt)
-		if err := runClaudePhase(wd, promptPath); err != nil {
+		if err := runClaudePhase(promptPath); err != nil {
 			return fmt.Errorf("coder phase failed: %w", err)
 		}
 
@@ -116,7 +110,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		// Run critic (fresh session, no hook)
 		criticPrompt, _ := prompt.LoadCritic()
 		promptPath, _ = prompt.WriteCurrentPrompt(criticPrompt)
-		if err := runClaudePhase(wd, promptPath); err != nil {
+		if err := runClaudePhase(promptPath); err != nil {
 			return fmt.Errorf("critic phase failed: %w", err)
 		}
 
@@ -137,7 +131,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	evalPrompt, _ := prompt.LoadEvaluator()
 	promptPath, _ := prompt.WriteCurrentPrompt(evalPrompt)
-	if err := runClaudePhase(wd, promptPath); err != nil {
+	if err := runClaudePhase(promptPath); err != nil {
 		return fmt.Errorf("evaluator phase failed: %w", err)
 	}
 
@@ -154,47 +148,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runClaudePhase runs a Claude session and waits for it to complete
-func runClaudePhase(workDir, promptFile string) error {
-	// Create runner script that keeps shell alive for debugging
-	runnerPath := workDir + "/.autoclaude/run_claude.sh"
-	scriptContent := fmt.Sprintf(`#!/bin/bash
-set -e
-PROMPT_FILE=%q
-if [ ! -f "$PROMPT_FILE" ]; then
-    echo "ERROR: Prompt file not found: $PROMPT_FILE"
-    read -p "Press Enter to exit..."
-    exit 1
-fi
-echo "Running claude with prompt from: $PROMPT_FILE"
-claude -- "$(cat "$PROMPT_FILE")"
-EXIT_CODE=$?
-echo ""
-echo "Claude exited with code: $EXIT_CODE"
-echo "Press Enter to continue to next phase..."
-read
-`, promptFile)
-	if err := os.WriteFile(runnerPath, []byte(scriptContent), 0755); err != nil {
-		return fmt.Errorf("failed to write runner script: %w", err)
-	}
-
-	// Kill any existing session
-	if tmux.SessionExists() {
-		tmux.KillSession()
-	}
-
-	// Create session and run command
-	if err := tmux.CreateSession(workDir); err != nil {
-		return fmt.Errorf("failed to create tmux session: %w", err)
-	}
-
-	if err := tmux.SendCommand(runnerPath); err != nil {
-		return fmt.Errorf("failed to send command: %w", err)
-	}
-
-	// Attach and wait for completion
-	fmt.Println("(Attaching to tmux session)")
-	return tmux.AttachAndWait()
+// runClaudePhase runs a Claude session in the foreground and waits for it to complete
+func runClaudePhase(promptFile string) error {
+	return claude.RunInteractiveWithPromptFile(promptFile, "acceptEdits")
 }
 
 // hasIncompleteTodos checks if there are incomplete TODOs

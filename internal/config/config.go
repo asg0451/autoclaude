@@ -42,12 +42,7 @@ type Permissions struct {
 
 // Hooks represents the hooks section
 type Hooks struct {
-	Stop []HookConfig `json:"Stop,omitempty"`
-}
-
-// HookConfig represents a hook configuration
-type HookConfig struct {
-	Hooks []Hook `json:"hooks"`
+	Stop []Hook `json:"Stop,omitempty"`
 }
 
 // Hook represents an individual hook
@@ -168,24 +163,18 @@ func AddStopHook(settings *ClaudeSettings, autoclaudePath string) {
 		Command: fmt.Sprintf("%s _continue", autoclaudePath),
 	}
 
-	hookConfig := HookConfig{
-		Hooks: []Hook{hook},
-	}
-
 	if settings.Hooks == nil {
 		settings.Hooks = &Hooks{}
 	}
 
 	// Check if we already have our hook
 	for _, h := range settings.Hooks.Stop {
-		for _, inner := range h.Hooks {
-			if inner.Command == hook.Command {
-				return // Already configured
-			}
+		if h.Command == hook.Command {
+			return // Already configured
 		}
 	}
 
-	settings.Hooks.Stop = append(settings.Hooks.Stop, hookConfig)
+	settings.Hooks.Stop = append(settings.Hooks.Stop, hook)
 }
 
 // Save saves the settings to the Claude settings file
@@ -245,16 +234,62 @@ func RemoveStopHook(autoclaudePath string) error {
 	}
 
 	expectedCmd := fmt.Sprintf("%s _continue", autoclaudePath)
-	var newStopHooks []HookConfig
+	var newStopHooks []Hook
 	for _, h := range existing.Hooks.Stop {
-		var newInnerHooks []Hook
-		for _, inner := range h.Hooks {
-			if inner.Command != expectedCmd {
-				newInnerHooks = append(newInnerHooks, inner)
-			}
+		if h.Command != expectedCmd {
+			newStopHooks = append(newStopHooks, h)
 		}
-		if len(newInnerHooks) > 0 {
-			newStopHooks = append(newStopHooks, HookConfig{Hooks: newInnerHooks})
+	}
+	existing.Hooks.Stop = newStopHooks
+
+	return Save(existing)
+}
+
+// SetupPlannerStopHook adds a stop hook that exits when planner asks for confirmation
+func SetupPlannerStopHook(autoclaudePath string) error {
+	existing, err := LoadExisting()
+	if err != nil {
+		return err
+	}
+
+	hook := Hook{
+		Type:    "command",
+		Command: fmt.Sprintf("%s _planner-done", autoclaudePath),
+	}
+
+	if existing.Hooks == nil {
+		existing.Hooks = &Hooks{}
+	}
+
+	// Remove any existing planner hook first
+	RemovePlannerStopHook(autoclaudePath)
+
+	// Reload after removal
+	existing, _ = LoadExisting()
+	if existing.Hooks == nil {
+		existing.Hooks = &Hooks{}
+	}
+
+	existing.Hooks.Stop = append(existing.Hooks.Stop, hook)
+	return Save(existing)
+}
+
+// RemovePlannerStopHook removes the planner stop hook
+func RemovePlannerStopHook(autoclaudePath string) error {
+	existing, err := LoadExisting()
+	if err != nil {
+		return err
+	}
+
+	if existing.Hooks == nil || len(existing.Hooks.Stop) == 0 {
+		return nil
+	}
+
+	expectedCmd := fmt.Sprintf("%s _planner-done", autoclaudePath)
+	var newStopHooks []Hook
+	for _, h := range existing.Hooks.Stop {
+		if h.Command != expectedCmd {
+			newStopHooks = append(newStopHooks, h)
 		}
 	}
 	existing.Hooks.Stop = newStopHooks

@@ -8,7 +8,8 @@
       "Bash(./autoclaude:*)",
       "Bash(go vet:*)",
       "Bash(tree:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(go test:*)"
     ]
   }
 }

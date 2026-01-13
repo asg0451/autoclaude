@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"go.coldcutz.net/autoclaude/internal/claude"
 	"go.coldcutz.net/autoclaude/internal/prompt"
 	"go.coldcutz.net/autoclaude/internal/state"
-	"go.coldcutz.net/autoclaude/internal/tmux"
 )
 
 // claude is used for CheckInstalled
@@ -97,14 +95,8 @@ func runResume(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to write current prompt: %w", err)
 	}
 
-	// Get working directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	// Run Claude with prompt file
-	if err := tmux.RunClaudeWithPromptFile(wd, promptPath, false); err != nil {
+	// Run Claude directly in foreground
+	if err := claude.RunInteractiveWithPromptFile(promptPath, "acceptEdits"); err != nil {
 		return fmt.Errorf("failed to resume: %w", err)
 	}
 

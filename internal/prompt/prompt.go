@@ -25,13 +25,14 @@ Read .autoclaude/TODO.md and work on the highest priority incomplete item.
 1. Run tests after changes: ` + "`{{TEST_CMD}}`" + `
 2. Do NOT declare success until tests pass
 3. Commit after completing each task with a descriptive message
-4. Update .autoclaude/TODO.md: mark items complete, add new items if discovered
+4. Update .autoclaude/TODO.md: check off completed items (change "- [ ]" to "- [x]"), do NOT delete them
 5. Update .autoclaude/STATUS.md with current progress
 6. Ignore .autoclaude/ directory contents except for TODO.md, NOTES.md, STATUS.md
 {{CONSTRAINTS}}
 
 ## When Done
-Mark the current TODO as complete and stop. The orchestrator will continue.
+Check off the current TODO item (- [ ] → - [x]) and STOP IMMEDIATELY. Do not continue to the next task.
+The orchestrator will handle the next steps.
 `
 
 // criticTemplate is the template for the critic prompt
@@ -120,8 +121,28 @@ Each TODO must have:
 - Priority (high/medium/low)
 - Dependencies on other tasks if any
 
-Write the final TODOs to .autoclaude/TODO.md using this format:
+Write two files:
+1. .autoclaude/plan.md - A detailed design document explaining the architecture and approach
+2. .autoclaude/TODO.md - The implementation task list
 
+### plan.md format:
+` + "```markdown" + `
+# Implementation Plan
+
+## Overview
+Brief summary of the approach
+
+## Architecture
+Key components and how they interact
+
+## Key Decisions
+Important design choices and rationale
+
+## Files to Create/Modify
+List of files with brief descriptions
+` + "```" + `
+
+### TODO.md format:
 ` + "```markdown" + `
 # TODOs
 
@@ -129,16 +150,13 @@ Write the final TODOs to .autoclaude/TODO.md using this format:
 - [ ] **Task name** - Completion: specific measurable criteria
   - Priority: high
   - Dependencies: none (or list task names)
-
-- [ ] **Another task** - Completion: tests pass, feature works as specified
-  - Priority: medium
-  - Dependencies: Task name above
 ` + "```" + `
 
 ## Important
 - Take time to get the design right - it's cheaper to iterate on plans than code
 - Err on the side of asking questions rather than making assumptions
 - The user is your partner in this process, involve them in decisions
+- After writing the plan and TODOs, ask the user if the plan looks good
 `
 
 // expandTemplate replaces template variables with values

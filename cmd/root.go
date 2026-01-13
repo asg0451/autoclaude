@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 
 Commands:
   init     Set up prompts and initial TODOs for a project
-  run      Start the coder→critic loop in a tmux session
+  run      Start the coder→critic loop
   resume   Resume from last saved state after interruption
   status   Display current progress and state`,
 }

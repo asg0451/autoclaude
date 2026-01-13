@@ -50,6 +50,32 @@ func CheckInstalled() error {
 	return nil
 }
 
+// RunInteractive runs Claude interactively with the given prompt and permission mode
+// permissionMode can be "acceptEdits", "plan", or empty for default
+func RunInteractive(prompt string, permissionMode string) error {
+	args := []string{}
+	if permissionMode != "" {
+		args = append(args, "--permission-mode", permissionMode)
+	}
+	args = append(args, "--", prompt)
+
+	cmd := exec.Command("claude", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+// RunInteractiveWithPromptFile runs Claude interactively reading prompt from a file
+func RunInteractiveWithPromptFile(promptFile string, permissionMode string) error {
+	promptData, err := os.ReadFile(promptFile)
+	if err != nil {
+		return fmt.Errorf("failed to read prompt file: %w", err)
+	}
+	return RunInteractive(string(promptData), permissionMode)
+}
+
 // ParseCriticOutput parses critic output to determine if approved
 func ParseCriticOutput(output string) (approved bool, fixInstructions string) {
 	upper := strings.ToUpper(output)
