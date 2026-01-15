@@ -42,7 +42,9 @@ type Permissions struct {
 
 // Hooks represents the hooks section
 type Hooks struct {
-	Stop []HookConfig `json:"Stop,omitempty"`
+	Stop              []HookConfig `json:"Stop,omitempty"`
+	PreToolUse        []HookConfig `json:"PreToolUse,omitempty"`
+	Notification      []HookConfig `json:"Notification,omitempty"`
 }
 
 // HookConfig represents a hook configuration with matcher
@@ -53,7 +55,8 @@ type HookConfig struct {
 
 // HookMatcher specifies when hooks should run
 type HookMatcher struct {
-	// For Stop hooks, matcher can be empty to match all stops
+	ToolName string `json:"toolName,omitempty"`
+	Type     string `json:"type,omitempty"`
 }
 
 // Hook represents an individual hook action
@@ -221,7 +224,47 @@ func SetupPermissions() error {
 	}
 
 	merged := MergeSettings(baseline, existing)
+	AddNotificationHooks(merged)
 	return Save(merged)
+}
+
+// AddNotificationHooks adds hooks to ring terminal bell on permission requests and user questions
+func AddNotificationHooks(settings *ClaudeSettings) {
+	if settings.Hooks == nil {
+		settings.Hooks = &Hooks{}
+	}
+
+	bellCmd := "printf '\\a'"
+
+	// Add PreToolUse hook for AskUserQuestion
+	hasAskUserHook := false
+	for _, hc := range settings.Hooks.PreToolUse {
+		if hc.Matcher != nil && hc.Matcher.ToolName == "AskUserQuestion" {
+			hasAskUserHook = true
+			break
+		}
+	}
+	if !hasAskUserHook {
+		settings.Hooks.PreToolUse = append(settings.Hooks.PreToolUse, HookConfig{
+			Matcher: &HookMatcher{ToolName: "AskUserQuestion"},
+			Hooks:   []Hook{{Type: "command", Command: bellCmd}},
+		})
+	}
+
+	// Add Notification hook for permission requests
+	hasPermissionHook := false
+	for _, hc := range settings.Hooks.Notification {
+		if hc.Matcher != nil && hc.Matcher.Type == "permission" {
+			hasPermissionHook = true
+			break
+		}
+	}
+	if !hasPermissionHook {
+		settings.Hooks.Notification = append(settings.Hooks.Notification, HookConfig{
+			Matcher: &HookMatcher{Type: "permission"},
+			Hooks:   []Hook{{Type: "command", Command: bellCmd}},
+		})
+	}
 }
 
 // SetupStopHook adds the stop hook to settings (called by run, not init)
