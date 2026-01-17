@@ -49,14 +49,8 @@ type Hooks struct {
 
 // HookConfig represents a hook configuration with matcher
 type HookConfig struct {
-	Matcher *HookMatcher `json:"matcher,omitempty"`
-	Hooks   []Hook       `json:"hooks"`
-}
-
-// HookMatcher specifies when hooks should run
-type HookMatcher struct {
-	ToolName string `json:"toolName,omitempty"`
-	Type     string `json:"type,omitempty"`
+	Matcher interface{} `json:"matcher,omitempty"` // Tool name pattern string (e.g., "AskUserQuestion") or notification type (e.g., "permission_prompt")
+	Hooks   []Hook      `json:"hooks"`
 }
 
 // Hook represents an individual hook action
@@ -236,32 +230,46 @@ func AddNotificationHooks(settings *ClaudeSettings) {
 
 	bellCmd := "printf '\\a'"
 
-	// Add PreToolUse hook for AskUserQuestion
+	// Remove old-format PreToolUse hooks and check for new format
+	var filteredPreToolUse []HookConfig
 	hasAskUserHook := false
 	for _, hc := range settings.Hooks.PreToolUse {
-		if hc.Matcher != nil && hc.Matcher.ToolName == "AskUserQuestion" {
+		if matcherStr, ok := hc.Matcher.(string); ok && matcherStr == "AskUserQuestion" {
 			hasAskUserHook = true
-			break
+			filteredPreToolUse = append(filteredPreToolUse, hc)
+		} else if _, isMap := hc.Matcher.(map[string]interface{}); isMap {
+			// Skip old-format hooks (object matchers) - they'll be replaced
+			continue
+		} else {
+			filteredPreToolUse = append(filteredPreToolUse, hc)
 		}
 	}
+	settings.Hooks.PreToolUse = filteredPreToolUse
 	if !hasAskUserHook {
 		settings.Hooks.PreToolUse = append(settings.Hooks.PreToolUse, HookConfig{
-			Matcher: &HookMatcher{ToolName: "AskUserQuestion"},
+			Matcher: "AskUserQuestion",
 			Hooks:   []Hook{{Type: "command", Command: bellCmd}},
 		})
 	}
 
-	// Add Notification hook for permission requests
+	// Remove old-format Notification hooks and check for new format
+	var filteredNotification []HookConfig
 	hasPermissionHook := false
 	for _, hc := range settings.Hooks.Notification {
-		if hc.Matcher != nil && hc.Matcher.Type == "permission" {
+		if matcherStr, ok := hc.Matcher.(string); ok && matcherStr == "permission_prompt" {
 			hasPermissionHook = true
-			break
+			filteredNotification = append(filteredNotification, hc)
+		} else if _, isMap := hc.Matcher.(map[string]interface{}); isMap {
+			// Skip old-format hooks (object matchers) - they'll be replaced
+			continue
+		} else {
+			filteredNotification = append(filteredNotification, hc)
 		}
 	}
+	settings.Hooks.Notification = filteredNotification
 	if !hasPermissionHook {
 		settings.Hooks.Notification = append(settings.Hooks.Notification, HookConfig{
-			Matcher: &HookMatcher{Type: "permission"},
+			Matcher: "permission_prompt",
 			Hooks:   []Hook{{Type: "command", Command: bellCmd}},
 		})
 	}

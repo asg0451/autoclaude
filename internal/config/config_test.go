@@ -185,22 +185,16 @@ func TestAddNotificationHooks(t *testing.T) {
 	if len(settings.Hooks.PreToolUse) != 1 {
 		t.Fatalf("expected 1 PreToolUse hook, got %d", len(settings.Hooks.PreToolUse))
 	}
-	if settings.Hooks.PreToolUse[0].Matcher == nil {
-		t.Fatal("PreToolUse hook should have matcher")
-	}
-	if settings.Hooks.PreToolUse[0].Matcher.ToolName != "AskUserQuestion" {
-		t.Errorf("expected AskUserQuestion matcher, got %s", settings.Hooks.PreToolUse[0].Matcher.ToolName)
+	if settings.Hooks.PreToolUse[0].Matcher != "AskUserQuestion" {
+		t.Errorf("expected AskUserQuestion matcher, got %v", settings.Hooks.PreToolUse[0].Matcher)
 	}
 
-	// Check Notification hook for permission
+	// Check Notification hook for permission_prompt
 	if len(settings.Hooks.Notification) != 1 {
 		t.Fatalf("expected 1 Notification hook, got %d", len(settings.Hooks.Notification))
 	}
-	if settings.Hooks.Notification[0].Matcher == nil {
-		t.Fatal("Notification hook should have matcher")
-	}
-	if settings.Hooks.Notification[0].Matcher.Type != "permission" {
-		t.Errorf("expected permission matcher, got %s", settings.Hooks.Notification[0].Matcher.Type)
+	if settings.Hooks.Notification[0].Matcher != "permission_prompt" {
+		t.Errorf("expected permission_prompt matcher, got %v", settings.Hooks.Notification[0].Matcher)
 	}
 
 	// Adding again should not duplicate
