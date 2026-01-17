@@ -144,6 +144,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 		fmt.Println("  (Claude will work with you to clarify the design)")
 		fmt.Println()
 
+		// Clean up any stale planning_complete file from previous runs
+		config.RemovePlanningComplete()
+
 		// Save planner prompt to file
 		plannerPath, err := prompt.SavePlannerPrompt(params)
 		if err != nil {
@@ -156,7 +159,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to get autoclaude path: %w", err)
 		}
 
-		// Set up planner stop hook (exits when planner asks for confirmation)
+		// Set up planner stop hook (only kills Claude when planning_complete file exists)
 		if err := config.SetupPlannerStopHook(autoclaudePath); err != nil {
 			return fmt.Errorf("failed to setup planner stop hook: %w", err)
 		}
@@ -165,13 +168,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 		if err := claude.RunInteractiveWithPromptFile(plannerPath, "acceptEdits"); err != nil {
 			// Clean up hook even on error
 			config.RemovePlannerStopHook(autoclaudePath)
+			config.RemovePlanningComplete()
 			return fmt.Errorf("failed to run planner: %w", err)
 		}
 
-		// Remove planner stop hook
+		// Remove planner stop hook and planning_complete marker
 		if err := config.RemovePlannerStopHook(autoclaudePath); err != nil {
 			// Non-fatal, continue
 		}
+		config.RemovePlanningComplete()
 
 		// Commit all planner output
 		fmt.Println("  Committing planner output...")

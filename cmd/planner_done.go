@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.coldcutz.net/autoclaude/internal/claude"
+	"go.coldcutz.net/autoclaude/internal/config"
 )
 
 // PlannerHookInput represents the input from Claude Code stop hook
@@ -49,10 +50,11 @@ func runPlannerDone(cmd *cobra.Command, args []string) error {
 		return outputPlannerAllow()
 	}
 
-	// Kill Claude process to ensure it exits
-	// The stop hook fires when Claude pauses, but Claude might continue
-	// So we forcibly kill it to return control to autoclaude
-	claude.KillClaude()
+	// Only kill Claude if planning is complete (user confirmed the plan)
+	// If the file doesn't exist, let Claude continue working with the user
+	if config.IsPlanningComplete() {
+		claude.KillClaude()
+	}
 
 	return outputPlannerAllow()
 }

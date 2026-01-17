@@ -12,15 +12,16 @@ import (
 var baselineJSON []byte
 
 const (
-	ClaudeDir          = ".claude"
-	SettingsFile       = "settings.local.json"
-	AutoclaudeDir      = ".autoclaude"
-	PromptsSubdir      = "prompts"
-	CoderPromptFile    = "coder_prompt.md"
-	CriticPromptFile   = "critic.md"
-	EvalPromptFile     = "evaluator.md"
-	PlannerPromptFile  = "planner_prompt.md"
-	CurrentPromptFile  = "current_prompt.md"
+	ClaudeDir            = ".claude"
+	SettingsFile         = "settings.local.json"
+	AutoclaudeDir        = ".autoclaude"
+	PromptsSubdir        = "prompts"
+	CoderPromptFile      = "coder_prompt.md"
+	CriticPromptFile     = "critic.md"
+	EvalPromptFile       = "evaluator.md"
+	PlannerPromptFile    = "planner_prompt.md"
+	CurrentPromptFile    = "current_prompt.md"
+	PlanningCompleteFile = "planning_complete"
 )
 
 // PromptsDir returns the path to the prompts directory under .autoclaude
@@ -93,6 +94,26 @@ func PlannerPromptPath() string {
 // This is used to pass prompts to Claude via file to avoid shell quoting issues
 func CurrentPromptPath() string {
 	return filepath.Join(AutoclaudeDir, CurrentPromptFile)
+}
+
+// PlanningCompletePath returns the path to the planning complete marker file
+func PlanningCompletePath() string {
+	return filepath.Join(AutoclaudeDir, PlanningCompleteFile)
+}
+
+// IsPlanningComplete checks if the planning_complete marker file exists
+func IsPlanningComplete() bool {
+	_, err := os.Stat(PlanningCompletePath())
+	return err == nil
+}
+
+// RemovePlanningComplete removes the planning_complete marker file
+func RemovePlanningComplete() error {
+	path := PlanningCompletePath()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // LoadBaseline loads the embedded baseline permissions
