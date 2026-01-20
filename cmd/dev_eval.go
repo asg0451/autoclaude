@@ -69,7 +69,7 @@ func runDevEval(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Prompt file: %s\n", promptPath)
 	fmt.Println()
 
-	if err := claude.RunInteractiveWithPromptFile(promptPath, "acceptEdits"); err != nil {
+	if err := claude.RunInteractiveWithPromptFile(promptPath, "acceptEdits", ""); err != nil {
 		config.RemoveEvaluatorStopHook(autoclaudePath)
 		config.RemoveEvaluationComplete()
 		return fmt.Errorf("evaluator failed: %w", err)

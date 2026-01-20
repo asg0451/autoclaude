@@ -15,6 +15,8 @@ import (
 
 const maxFixRetries = 3
 
+var runCoderSonnet bool
+
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Start the coder-critic loop",
@@ -34,6 +36,7 @@ Each phase runs in a fresh Claude session to maintain quality.`,
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().BoolVar(&runCoderSonnet, "coder-sonnet", false, "Use Sonnet model for coder/fixer phases")
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
@@ -74,9 +77,18 @@ func runRun(cmd *cobra.Command, args []string) error {
 		TestCmd: s.TestCmd,
 	}
 
+	// Determine coder model
+	coderModel := ""
+	if runCoderSonnet {
+		coderModel = "sonnet"
+	}
+
 	fmt.Println("Starting autoclaude loop...")
 	fmt.Printf("  Goal: %s\n", s.Goal)
 	fmt.Printf("  Test command: %s\n", s.TestCmd)
+	if coderModel != "" {
+		fmt.Printf("  Coder model: %s\n", coderModel)
+	}
 	fmt.Println()
 
 	// Enable stop hook for all phases (kills Claude when it stops to return control)
@@ -106,7 +118,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		commitBefore := getCommitHash()
 		coderPrompt, _ := prompt.LoadCoder()
 		promptPath, _ := prompt.WriteCurrentPrompt(coderPrompt)
-		if err := runClaudePhase(promptPath, s.Stats); err != nil {
+		if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 			return fmt.Errorf("coder phase failed: %w", err)
 		}
 		checkCommitCreated(commitBefore, "Coder")
@@ -125,7 +137,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 			criticPrompt, _ := prompt.LoadCritic()
 			promptPath, _ = prompt.WriteCurrentPrompt(criticPrompt)
-			if err := runClaudePhase(promptPath, s.Stats); err != nil {
+			if err := runClaudePhase(promptPath, s.Stats, ""); err != nil {
 				return fmt.Errorf("critic phase failed: %w", err)
 			}
 
@@ -167,7 +179,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 					// Use state.GetCurrentTodo() to read from file (robust across restarts)
 					fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
 					promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
-					if err := runClaudePhase(promptPath, s.Stats); err != nil {
+					if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 						return fmt.Errorf("fixer phase failed: %w", err)
 					}
 					checkCommitCreated(fixerCommitBefore, "Fixer")
@@ -207,7 +219,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	evalPrompt, _ := prompt.LoadEvaluator()
 	promptPath, _ := prompt.WriteCurrentPrompt(evalPrompt)
-	if err := runClaudePhase(promptPath, s.Stats); err != nil {
+	if err := runClaudePhase(promptPath, s.Stats, ""); err != nil {
 		config.RemoveEvaluatorStopHook(autoclaudePath)
 		config.RemoveEvaluationComplete()
 		return fmt.Errorf("evaluator phase failed: %w", err)
@@ -235,11 +247,12 @@ func runRun(cmd *cobra.Command, args []string) error {
 }
 
 // runClaudePhase runs a Claude session in the foreground and waits for it to complete
-func runClaudePhase(promptFile string, stats *state.Stats) error {
+// model can be "sonnet", "opus", or empty for default
+func runClaudePhase(promptFile string, stats *state.Stats, model string) error {
 	if stats != nil {
 		stats.ClaudeRuns++
 	}
-	return claude.RunInteractiveWithPromptFile(promptFile, "acceptEdits")
+	return claude.RunInteractiveWithPromptFile(promptFile, "acceptEdits", model)
 }
 
 // hasIncompleteTodos checks if there are incomplete TODOs

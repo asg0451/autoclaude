@@ -165,7 +165,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 
 		// Run Claude inline with acceptEdits permission mode
-		if err := claude.RunInteractiveWithPromptFile(plannerPath, "acceptEdits"); err != nil {
+		if err := claude.RunInteractiveWithPromptFile(plannerPath, "acceptEdits", ""); err != nil {
 			// Clean up hook even on error
 			config.RemovePlannerStopHook(autoclaudePath)
 			config.RemovePlanningComplete()

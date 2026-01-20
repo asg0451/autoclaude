@@ -11,6 +11,8 @@ import (
 	"go.coldcutz.net/autoclaude/internal/state"
 )
 
+var resumeCoderSonnet bool
+
 var resumeCmd = &cobra.Command{
 	Use:   "resume",
 	Short: "Resume from saved state",
@@ -25,6 +27,7 @@ Use this after:
 
 func init() {
 	rootCmd.AddCommand(resumeCmd)
+	resumeCmd.Flags().BoolVar(&resumeCoderSonnet, "coder-sonnet", false, "Use Sonnet model for coder/fixer phases")
 }
 
 func runResume(cmd *cobra.Command, args []string) error {
@@ -63,11 +66,20 @@ func runResume(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Determine coder model
+	coderModel := ""
+	if resumeCoderSonnet {
+		coderModel = "sonnet"
+	}
+
 	fmt.Println("Resuming autoclaude loop...")
 	fmt.Printf("  Current step: %s\n", s.Step)
 	fmt.Printf("  TODO iteration: %d\n", s.Iteration)
 	if currentTodo := state.GetCurrentTodo(); currentTodo != "(unknown)" {
 		fmt.Printf("  Current TODO: %s\n", currentTodo)
+	}
+	if coderModel != "" {
+		fmt.Printf("  Coder model: %s\n", coderModel)
 	}
 	fmt.Println()
 
@@ -98,7 +110,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 		commitBefore := getCommitHash()
 		coderPrompt, _ := prompt.LoadCoder()
 		promptPath, _ := prompt.WriteCurrentPrompt(coderPrompt)
-		if err := runClaudePhase(promptPath, s.Stats); err != nil {
+		if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 			return fmt.Errorf("coder phase failed: %w", err)
 		}
 		checkCommitCreated(commitBefore, "Coder")
@@ -111,7 +123,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 		state.ClearCriticVerdict()
 		criticPrompt, _ := prompt.LoadCritic()
 		promptPath, _ := prompt.WriteCurrentPrompt(criticPrompt)
-		if err := runClaudePhase(promptPath, s.Stats); err != nil {
+		if err := runClaudePhase(promptPath, s.Stats, ""); err != nil {
 			return fmt.Errorf("critic phase failed: %w", err)
 		}
 
@@ -126,7 +138,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 			fixerCommitBefore := getCommitHash()
 			fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
 			promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
-			if err := runClaudePhase(promptPath, s.Stats); err != nil {
+			if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 				return fmt.Errorf("fixer phase failed: %w", err)
 			}
 			checkCommitCreated(fixerCommitBefore, "Fixer")
@@ -150,7 +162,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 
 		evalPrompt, _ := prompt.LoadEvaluator()
 		promptPath, _ := prompt.WriteCurrentPrompt(evalPrompt)
-		if err := runClaudePhase(promptPath, s.Stats); err != nil {
+		if err := runClaudePhase(promptPath, s.Stats, ""); err != nil {
 			config.RemoveEvaluatorStopHook(autoclaudePath)
 			config.RemoveEvaluationComplete()
 			return fmt.Errorf("evaluator phase failed: %w", err)
@@ -162,11 +174,11 @@ func runResume(cmd *cobra.Command, args []string) error {
 	}
 
 	// Now continue with the normal run loop for remaining TODOs
-	return continueRunLoop(s, params, autoclaudePath)
+	return continueRunLoop(s, params, autoclaudePath, coderModel)
 }
 
 // continueRunLoop continues the main loop after resuming
-func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath string) error {
+func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath string, coderModel string) error {
 	// Process remaining TODOs
 	for hasIncompleteTodos() {
 		s.Iteration++
@@ -187,7 +199,7 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 		commitBefore := getCommitHash()
 		coderPrompt, _ := prompt.LoadCoder()
 		promptPath, _ := prompt.WriteCurrentPrompt(coderPrompt)
-		if err := runClaudePhase(promptPath, s.Stats); err != nil {
+		if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 			return fmt.Errorf("coder phase failed: %w", err)
 		}
 		checkCommitCreated(commitBefore, "Coder")
@@ -205,7 +217,7 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 
 			criticPrompt, _ := prompt.LoadCritic()
 			promptPath, _ = prompt.WriteCurrentPrompt(criticPrompt)
-			if err := runClaudePhase(promptPath, s.Stats); err != nil {
+			if err := runClaudePhase(promptPath, s.Stats, ""); err != nil {
 				return fmt.Errorf("critic phase failed: %w", err)
 			}
 
@@ -245,7 +257,7 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 					fixerCommitBefore := getCommitHash()
 					fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
 					promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
-					if err := runClaudePhase(promptPath, s.Stats); err != nil {
+					if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 						return fmt.Errorf("fixer phase failed: %w", err)
 					}
 					checkCommitCreated(fixerCommitBefore, "Fixer")
@@ -284,7 +296,7 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 
 	evalPrompt, _ := prompt.LoadEvaluator()
 	promptPath, _ := prompt.WriteCurrentPrompt(evalPrompt)
-	if err := runClaudePhase(promptPath, s.Stats); err != nil {
+	if err := runClaudePhase(promptPath, s.Stats, ""); err != nil {
 		config.RemoveEvaluatorStopHook(autoclaudePath)
 		config.RemoveEvaluationComplete()
 		return fmt.Errorf("evaluator phase failed: %w", err)
@@ -297,7 +309,7 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 	// Check if evaluator added more TODOs (user requested more work)
 	if hasIncompleteTodos() {
 		fmt.Println("User requested more work. Continuing...")
-		return continueRunLoop(s, params, autoclaudePath)
+		return continueRunLoop(s, params, autoclaudePath, coderModel)
 	}
 
 	s.Step = state.StepDone

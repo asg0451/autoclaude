@@ -53,15 +53,24 @@ func CheckInstalled() error {
 // PidFile is where we store the current Claude process PID
 const PidFile = ".autoclaude/claude.pid"
 
-// RunInteractive runs Claude interactively with the given prompt and permission mode
-// permissionMode can be "acceptEdits", "plan", or empty for default
-func RunInteractive(prompt string, permissionMode string) error {
+// buildInteractiveArgs builds the argument list for running Claude interactively
+func buildInteractiveArgs(prompt string, permissionMode string, model string) []string {
 	args := []string{}
 	if permissionMode != "" {
 		args = append(args, "--permission-mode", permissionMode)
 	}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
 	args = append(args, "--", prompt)
+	return args
+}
 
+// RunInteractive runs Claude interactively with the given prompt and permission mode
+// permissionMode can be "acceptEdits", "plan", or empty for default
+// model can be "sonnet", "opus", or empty for default
+func RunInteractive(prompt string, permissionMode string, model string) error {
+	args := buildInteractiveArgs(prompt, permissionMode, model)
 	cmd := exec.Command("claude", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -100,12 +109,13 @@ func KillClaude() error {
 }
 
 // RunInteractiveWithPromptFile runs Claude interactively reading prompt from a file
-func RunInteractiveWithPromptFile(promptFile string, permissionMode string) error {
+// model can be "sonnet", "opus", or empty for default
+func RunInteractiveWithPromptFile(promptFile string, permissionMode string, model string) error {
 	promptData, err := os.ReadFile(promptFile)
 	if err != nil {
 		return fmt.Errorf("failed to read prompt file: %w", err)
 	}
-	return RunInteractive(string(promptData), permissionMode)
+	return RunInteractive(string(promptData), permissionMode, model)
 }
 
 // ParseCriticOutput parses critic output to determine if approved
