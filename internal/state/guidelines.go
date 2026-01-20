@@ -151,6 +151,7 @@ func goGuidelines() string {
 
 ### Error Handling
 - Always check and handle errors - never ignore them with ` + "`_`" + `
+- Missing error checks are NOT minor issues, even in test code
 - Wrap errors with context: ` + "`fmt.Errorf(\"doing X: %w\", err)`" + `
 - Return errors to callers rather than panicking in library code
 
