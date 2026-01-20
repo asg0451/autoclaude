@@ -12,16 +12,17 @@ import (
 var baselineJSON []byte
 
 const (
-	ClaudeDir            = ".claude"
-	SettingsFile         = "settings.local.json"
-	AutoclaudeDir        = ".autoclaude"
-	PromptsSubdir        = "prompts"
-	CoderPromptFile      = "coder_prompt.md"
-	CriticPromptFile     = "critic.md"
-	EvalPromptFile       = "evaluator.md"
-	PlannerPromptFile    = "planner_prompt.md"
-	CurrentPromptFile    = "current_prompt.md"
-	PlanningCompleteFile = "planning_complete"
+	ClaudeDir              = ".claude"
+	SettingsFile           = "settings.local.json"
+	AutoclaudeDir          = ".autoclaude"
+	PromptsSubdir          = "prompts"
+	CoderPromptFile        = "coder_prompt.md"
+	CriticPromptFile       = "critic.md"
+	EvalPromptFile         = "evaluator.md"
+	PlannerPromptFile      = "planner_prompt.md"
+	CurrentPromptFile      = "current_prompt.md"
+	PlanningCompleteFile   = "planning_complete"
+	EvaluationCompleteFile = "evaluation_complete"
 )
 
 // PromptsDir returns the path to the prompts directory under .autoclaude
@@ -110,6 +111,26 @@ func IsPlanningComplete() bool {
 // RemovePlanningComplete removes the planning_complete marker file
 func RemovePlanningComplete() error {
 	path := PlanningCompletePath()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+// EvaluationCompletePath returns the path to the evaluation complete marker file
+func EvaluationCompletePath() string {
+	return filepath.Join(AutoclaudeDir, EvaluationCompleteFile)
+}
+
+// IsEvaluationComplete checks if the evaluation_complete marker file exists
+func IsEvaluationComplete() bool {
+	_, err := os.Stat(EvaluationCompletePath())
+	return err == nil
+}
+
+// RemoveEvaluationComplete removes the evaluation_complete marker file
+func RemoveEvaluationComplete() error {
+	path := EvaluationCompletePath()
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -358,6 +379,45 @@ func RemovePlannerStopHook(autoclaudePath string) error {
 	}
 
 	expectedCmd := fmt.Sprintf("%s _planner-done", autoclaudePath)
+	existing.Hooks.Stop = filterOutCommand(existing.Hooks.Stop, expectedCmd)
+
+	return Save(existing)
+}
+
+// SetupEvaluatorStopHook adds a stop hook for the evaluator phase
+func SetupEvaluatorStopHook(autoclaudePath string) error {
+	// Remove any existing evaluator hook first
+	RemoveEvaluatorStopHook(autoclaudePath)
+
+	existing, err := LoadExisting()
+	if err != nil {
+		return err
+	}
+
+	if existing.Hooks == nil {
+		existing.Hooks = &Hooks{}
+	}
+
+	expectedCmd := fmt.Sprintf("%s _evaluator-done", autoclaudePath)
+	hookConfig := HookConfig{
+		Hooks: []Hook{{Type: "command", Command: expectedCmd}},
+	}
+	existing.Hooks.Stop = append(existing.Hooks.Stop, hookConfig)
+	return Save(existing)
+}
+
+// RemoveEvaluatorStopHook removes the evaluator stop hook
+func RemoveEvaluatorStopHook(autoclaudePath string) error {
+	existing, err := LoadExisting()
+	if err != nil {
+		return err
+	}
+
+	if existing.Hooks == nil || len(existing.Hooks.Stop) == 0 {
+		return nil
+	}
+
+	expectedCmd := fmt.Sprintf("%s _evaluator-done", autoclaudePath)
 	existing.Hooks.Stop = filterOutCommand(existing.Hooks.Stop, expectedCmd)
 
 	return Save(existing)

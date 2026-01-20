@@ -125,11 +125,11 @@ func TestGenerateEvaluator(t *testing.T) {
 	if !strings.Contains(content, "cargo test") {
 		t.Error("evaluator prompt should contain test command")
 	}
-	if !strings.Contains(content, "GOAL_COMPLETE") {
-		t.Error("evaluator prompt should mention GOAL_COMPLETE")
+	if !strings.Contains(content, "evaluation_complete") {
+		t.Error("evaluator prompt should mention evaluation_complete marker file")
 	}
-	if !strings.Contains(content, "CONTINUING") {
-		t.Error("evaluator prompt should mention CONTINUING")
+	if !strings.Contains(content, "AskUserQuestion") {
+		t.Error("evaluator prompt should mention AskUserQuestion")
 	}
 }
 

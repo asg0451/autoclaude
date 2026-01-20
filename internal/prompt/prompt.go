@@ -138,7 +138,7 @@ Once the issues are fixed and tests pass, STOP IMMEDIATELY.
 `
 
 // evaluatorTemplate is the template for the evaluator prompt
-const evaluatorTemplate = `You are evaluating if the goal is achieved.
+const evaluatorTemplate = `You are a rigorous evaluator assessing if the project goal has been achieved.
 
 ## Goal
 {{GOAL}}
@@ -146,18 +146,67 @@ const evaluatorTemplate = `You are evaluating if the goal is achieved.
 ## Test Command
 ` + "`{{TEST_CMD}}`" + `
 
-## Instructions
-1. Review .autoclaude/TODO.md - are all critical items complete?
-2. Run the test suite: ` + "`{{TEST_CMD}}`" + `
-3. Manually verify the goal is met by examining the implementation
+## CRITICAL: Trust Nothing, Verify Everything
+
+DO NOT trust:
+- Existing test files (they may be wrong, incomplete, or misleading)
+- Source code comments claiming something works
+- TODO items marked as complete
+- So-called "e2e tests" - they may not actually test end-to-end
+
+YOU MUST personally verify:
+- Actually run the code/application yourself
+- Test the real user-facing functionality end-to-end
+- Try edge cases and error scenarios
+- Confirm the goal is ACTUALLY met, not just that tests pass
+
+## Your Approach
+
+### Step 1: Independent Verification (DO THIS FIRST)
+
+Personally test the implementation as a real user would:
+1. Run the application/code directly (not just tests)
+2. Exercise the core functionality end-to-end
+3. Try edge cases, invalid inputs, error scenarios
+4. Check that the GOAL is actually achieved, not just that code exists
+
+DO NOT skip this step. DO NOT assume passing tests mean the goal is met.
+
+### Step 2: Make Your Own Assessment
+
+Based on YOUR OWN verification:
+
+**If you found issues, gaps, or the goal is not fully met:**
+- Add specific TODOs to .autoclaude/TODO.md describing what needs to be fixed
+- Be precise about what's wrong and what "done" looks like
+- Exit immediately - the orchestrator will continue the loop
+- DO NOT ask the user - just add the TODOs and let the loop continue
+
+**If everything looks good to YOU:**
+- Proceed to Step 3
+
+### Step 3: User Confirmation (Only if YOU found no issues)
+
+If and only if YOUR verification found no issues, ask the user to confirm:
+- Present what you tested and verified
+- Use AskUserQuestion to ask if they want to do their own verification
+- Ask if there's anything else they want addressed
+
+### Step 4: Finalize
+
+**If user wants more work:**
+- Add TODOs for their requests
+- Exit (loop continues)
+
+**If user confirms done:**
+1. Write the file ` + "`.autoclaude/evaluation_complete`" + ` with content "done"
+2. Exit - the orchestrator will finalize
 
 ## Important
-ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
-AVOID using awk - it triggers an unskippable permissions check.
-
-## Actions
-- If goal is fully achieved: Say "GOAL_COMPLETE" and stop
-- If more work needed: Add new TODOs to .autoclaude/TODO.md and say "CONTINUING"
+- ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
+- AVOID using awk - it triggers an unskippable permissions check
+- Your job is to be the last line of defense - be thorough and skeptical
+- Finding issues is GOOD - it's better to catch them now than ship broken code
 `
 
 // plannerTemplate is the template for the initial planner (used during init)

@@ -197,15 +197,29 @@ func runRun(cmd *cobra.Command, args []string) error {
 	s.Save()
 	s.UpdateStatus("Running evaluator...")
 
+	// Clean up any stale evaluation_complete file
+	config.RemoveEvaluationComplete()
+
+	// Set up evaluator stop hook (only kills Claude when evaluation_complete file exists)
+	if err := config.SetupEvaluatorStopHook(autoclaudePath); err != nil {
+		return fmt.Errorf("failed to setup evaluator stop hook: %w", err)
+	}
+
 	evalPrompt, _ := prompt.LoadEvaluator()
 	promptPath, _ := prompt.WriteCurrentPrompt(evalPrompt)
 	if err := runClaudePhase(promptPath, s.Stats); err != nil {
+		config.RemoveEvaluatorStopHook(autoclaudePath)
+		config.RemoveEvaluationComplete()
 		return fmt.Errorf("evaluator phase failed: %w", err)
 	}
 
-	// Check if evaluator added more TODOs
+	// Clean up hook and marker
+	config.RemoveEvaluatorStopHook(autoclaudePath)
+	config.RemoveEvaluationComplete()
+
+	// Check if evaluator added more TODOs (user requested more work)
 	if hasIncompleteTodos() {
-		fmt.Println("Evaluator added more TODOs. Continuing...")
+		fmt.Println("User requested more work. Continuing...")
 		return runRun(cmd, args) // Recursive call to process new TODOs
 	}
 
