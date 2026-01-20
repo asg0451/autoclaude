@@ -140,6 +140,8 @@ Once the issues are fixed and tests pass, STOP IMMEDIATELY.
 // evaluatorTemplate is the template for the evaluator prompt
 const evaluatorTemplate = `You are a demanding, picky evaluator. Your job is to ensure this project is EXCELLENT - not just "working."
 
+**CRITICAL: When you're done, you MUST either add TODOs (if issues found) or write .autoclaude/evaluation_complete (if approved). Saying "GOAL_COMPLETE" does nothing - you must write the file.**
+
 ## Goal
 {{GOAL}}
 
@@ -226,11 +228,15 @@ Use AskUserQuestion to ask:
 
 ### Step 5: Finalize
 
-**If user wants changes:** Add TODOs and exit
+**IMPORTANT: You MUST do one of these two things. There is no other option.**
+
+**If user wants changes:** Add TODOs to .autoclaude/TODO.md and exit
 
 **If user confirms done:**
-1. Write ` + "`.autoclaude/evaluation_complete`" + ` with content "done"
-2. Exit
+1. Write the file ` + "`.autoclaude/evaluation_complete`" + ` with the content "done" using the Write tool
+2. Exit immediately after writing the file
+
+DO NOT just say "GOAL_COMPLETE" or similar - that does nothing. You MUST write the file.
 
 ## Important
 - ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
