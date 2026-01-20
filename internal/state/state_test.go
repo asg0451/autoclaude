@@ -193,7 +193,6 @@ func TestInitDir(t *testing.T) {
 
 	// Check that files were created
 	files := []string{
-		TodoPath(),
 		NotesPath(),
 		StatusPath(),
 	}

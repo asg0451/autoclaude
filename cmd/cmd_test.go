@@ -232,7 +232,6 @@ func TestIntegrationInitCreatesFiles(t *testing.T) {
 	// Check files exist
 	expectedFiles := []string{
 		state.StatePath(),
-		state.TodoPath(),
 		state.NotesPath(),
 		state.StatusPath(),
 		state.GuidelinesPath(),

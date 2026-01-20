@@ -193,8 +193,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  %s  (permissions & hooks)\n", config.SettingsPath())
 	fmt.Println()
 	fmt.Println("Next steps:")
-	fmt.Println("  1. Review .autoclaude/TODO.md")
-	fmt.Println("  2. Run: autoclaude run")
+	fmt.Println("  Run: autoclaude run")
 
 	return nil
 }

@@ -219,19 +219,6 @@ func InitDir(goal, testCmd string) error {
 		return fmt.Errorf("failed to create .autoclaude directory: %w", err)
 	}
 
-	// Create TODO.md
-	todoContent := `# TODOs
-
-## In Progress
-
-## Pending
-
-## Completed
-`
-	if err := os.WriteFile(TodoPath(), []byte(todoContent), 0644); err != nil {
-		return fmt.Errorf("failed to create TODO.md: %w", err)
-	}
-
 	// Create NOTES.md
 	notesContent := `# Notes
 
