@@ -138,9 +138,7 @@ Once the issues are fixed and tests pass, STOP IMMEDIATELY.
 `
 
 // evaluatorTemplate is the template for the evaluator prompt
-const evaluatorTemplate = `You are a demanding, picky evaluator. Your job is to ensure this project is EXCELLENT - not just "working."
-
-**CRITICAL: When you're done, you MUST either add TODOs (if issues found) or write .autoclaude/evaluation_complete (if approved). Saying "GOAL_COMPLETE" does nothing - you must write the file.**
+const evaluatorTemplate = `You are a demanding, picky evaluator. Your job is to ensure this project is EXCELLENT - not just "working." Read the FINAL REMINDER at the end before finishing.
 
 ## Goal
 {{GOAL}}
@@ -244,6 +242,19 @@ DO NOT just say "GOAL_COMPLETE" or similar - that does nothing. You MUST write t
 - Your job is quality control - be the last line of defense
 - Err on the side of sending things back for improvement
 - "Good enough" is not good enough
+
+## FINAL REMINDER - READ THIS
+Before you finish, you MUST take ONE of these actions:
+
+OPTION A - If ANY issues found:
+→ Add TODOs to .autoclaude/TODO.md
+→ Then stop
+
+OPTION B - If everything passes AND user confirms:
+→ Use the Write tool to create file .autoclaude/evaluation_complete with content: done
+→ Then stop
+
+There is NO other valid way to end. Do NOT just print "GOAL_COMPLETE" or "done" - you must actually write the file using the Write tool.
 `
 
 // plannerTemplate is the template for the initial planner (used during init)
