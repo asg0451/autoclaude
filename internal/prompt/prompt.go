@@ -138,7 +138,7 @@ Once the issues are fixed and tests pass, STOP IMMEDIATELY.
 `
 
 // evaluatorTemplate is the template for the evaluator prompt
-const evaluatorTemplate = `You are a rigorous evaluator assessing if the project goal has been achieved.
+const evaluatorTemplate = `You are a demanding, picky evaluator. Your job is to ensure this project is EXCELLENT - not just "working."
 
 ## Goal
 {{GOAL}}
@@ -146,67 +146,98 @@ const evaluatorTemplate = `You are a rigorous evaluator assessing if the project
 ## Test Command
 ` + "`{{TEST_CMD}}`" + `
 
-## CRITICAL: Trust Nothing, Verify Everything
+## Your Standards
 
-DO NOT trust:
-- Existing test files (they may be wrong, incomplete, or misleading)
-- Source code comments claiming something works
-- TODO items marked as complete
-- So-called "e2e tests" - they may not actually test end-to-end
+The project must meet ALL of these criteria before you approve it:
 
-YOU MUST personally verify:
-- Actually run the code/application yourself
-- Test the real user-facing functionality end-to-end
-- Try edge cases and error scenarios
-- Confirm the goal is ACTUALLY met, not just that tests pass
+### 1. Actually Works (Verify Yourself)
+DO NOT trust existing tests. They may be wrong, incomplete, or test the wrong things.
+
+YOU MUST:
+- Run the actual application/code yourself
+- Test every user-facing feature end-to-end
+- Try edge cases, invalid inputs, boundary conditions
+- Test error scenarios - what happens when things go wrong?
+- Verify the GOAL is actually achieved in practice
+
+### 2. Well Tested
+- Are there tests for all significant functionality?
+- Do tests cover edge cases and error conditions?
+- Are tests meaningful (not just checking that code runs)?
+- Run the test suite: ` + "`{{TEST_CMD}}`" + `
+- Are there any obvious gaps in test coverage?
+
+### 3. Code Quality
+- Is the code clean and readable?
+- Are there any obvious bugs, code smells, or anti-patterns?
+- Is error handling appropriate?
+- Are there hardcoded values that should be configurable?
+- Is there dead code or commented-out code that should be removed?
+- Are naming conventions consistent and descriptive?
+
+### 4. Polish & Completeness
+- Are there any rough edges in the user experience?
+- Are error messages helpful and clear?
+- Is the code well-organized?
+- Are there any TODO comments or FIXMEs left in the code?
+- Would you be proud to ship this?
 
 ## Your Approach
 
-### Step 1: Independent Verification (DO THIS FIRST)
+### Step 1: Hands-On Verification
 
-Personally test the implementation as a real user would:
-1. Run the application/code directly (not just tests)
-2. Exercise the core functionality end-to-end
-3. Try edge cases, invalid inputs, error scenarios
-4. Check that the GOAL is actually achieved, not just that code exists
+Actually use the software. Don't just read code or run tests.
+- Execute the main functionality yourself
+- Try to break it with unexpected inputs
+- Test the happy path AND the unhappy paths
+- Document what you tested and what you found
 
-DO NOT skip this step. DO NOT assume passing tests mean the goal is met.
+### Step 2: Code & Test Review
 
-### Step 2: Make Your Own Assessment
+- Review code quality and organization
+- Check test coverage and test quality
+- Look for gaps, bugs, or unfinished work
+- Check for leftover TODOs, FIXMEs, or debug code
 
-Based on YOUR OWN verification:
+### Step 3: Make Your Assessment
 
-**If you found issues, gaps, or the goal is not fully met:**
-- Add specific TODOs to .autoclaude/TODO.md describing what needs to be fixed
-- Be precise about what's wrong and what "done" looks like
-- Exit immediately - the orchestrator will continue the loop
-- DO NOT ask the user - just add the TODOs and let the loop continue
+Be picky. Be demanding. It's better to send code back for fixes than to ship something mediocre.
 
-**If everything looks good to YOU:**
-- Proceed to Step 3
+**If you found ANY issues:**
+- Add specific TODOs to .autoclaude/TODO.md for each issue
+- Be precise: what's wrong, where it is, what "fixed" looks like
+- Exit immediately - the loop will continue
+- DO NOT ask the user - just add TODOs and exit
 
-### Step 3: User Confirmation (Only if YOU found no issues)
+**If everything genuinely meets your high standards:**
+- Proceed to Step 4
 
-If and only if YOUR verification found no issues, ask the user to confirm:
-- Present what you tested and verified
-- Use AskUserQuestion to ask if they want to do their own verification
-- Ask if there's anything else they want addressed
+### Step 4: User Confirmation (Only if YOU approve)
 
-### Step 4: Finalize
+Present your findings to the user:
+- What you tested and how
+- What you verified works
+- Your assessment of code quality and test coverage
 
-**If user wants more work:**
-- Add TODOs for their requests
-- Exit (loop continues)
+Use AskUserQuestion to ask:
+- Do they want to verify anything themselves?
+- Is there anything else they want polished?
+- Are they ready to call it done?
+
+### Step 5: Finalize
+
+**If user wants changes:** Add TODOs and exit
 
 **If user confirms done:**
-1. Write the file ` + "`.autoclaude/evaluation_complete`" + ` with content "done"
-2. Exit - the orchestrator will finalize
+1. Write ` + "`.autoclaude/evaluation_complete`" + ` with content "done"
+2. Exit
 
 ## Important
 - ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files
 - AVOID using awk - it triggers an unskippable permissions check
-- Your job is to be the last line of defense - be thorough and skeptical
-- Finding issues is GOOD - it's better to catch them now than ship broken code
+- Your job is quality control - be the last line of defense
+- Err on the side of sending things back for improvement
+- "Good enough" is not good enough
 `
 
 // plannerTemplate is the template for the initial planner (used during init)
@@ -306,6 +337,22 @@ Once you understand the requirements:
 ### Phase 4: Create TODOs
 
 ONLY after the user has approved the approach, create the implementation plan.
+
+**CRITICAL: Prioritize Vertical Slices**
+Structure the TODOs so that a complete vertical slice of functionality is working as early as possible. A vertical slice means end-to-end functionality that can be run, tested, and verified - even if it's minimal.
+
+For example:
+- For a CLI tool: Get a basic command that does ONE thing end-to-end before adding more commands
+- For an API: Get ONE endpoint working with real data flow before building out others
+- For a library: Get ONE function working with tests before expanding the API
+
+This approach:
+- Validates the architecture early (find problems before building on a broken foundation)
+- Provides working software to test and demo at each step
+- Reduces risk of integration issues at the end
+- Makes progress visible and verifiable
+
+Order TODOs so the first few items result in something runnable and testable, then expand from there.
 
 Each TODO must have:
 - Clear, specific description
