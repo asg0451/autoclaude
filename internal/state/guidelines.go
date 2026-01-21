@@ -155,6 +155,10 @@ func goGuidelines() string {
 - Wrap errors with context: ` + "`fmt.Errorf(\"doing X: %w\", err)`" + `
 - Return errors to callers rather than panicking in library code
 
+### Logging
+- Always use ` + "`log/slog`" + ` for logging, not ` + "`log`" + `
+- Never use ` + "`fmt.Print*`" + ` or ` + "`println`" + ` for logging
+
 ### Concurrency
 - Prefer channels over shared memory when possible
 - Document which goroutine owns mutable state
