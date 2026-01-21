@@ -102,6 +102,8 @@ linters-settings:
       - name: empty-block
       - name: superfluous-else
       - name: unused-parameter
+        arguments:
+          - allowRegex: "^_"
       - name: unreachable-code
       - name: redefines-builtin-id
       # Additional useful rules
