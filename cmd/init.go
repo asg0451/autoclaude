@@ -124,6 +124,16 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to write coding guidelines: %w", err)
 	}
 
+	// Step 1c: Generate language-specific config files
+	for _, lang := range langs {
+		if lang == state.LangGo {
+			fmt.Println("  Creating .golangci.yml...")
+			if err := state.WriteGolangciLintConfig(); err != nil {
+				return fmt.Errorf("failed to write golangci-lint config: %w", err)
+			}
+		}
+	}
+
 	// Step 2: Generate and save prompts
 	fmt.Println("  Generating prompts...")
 	if err := prompt.SavePrompts(params); err != nil {
@@ -196,6 +206,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("Created:")
 	fmt.Printf("  %s  (prompts & tracking)\n", config.AutoclaudeDir)
 	fmt.Printf("  %s  (permissions & hooks)\n", config.SettingsPath())
+	for _, lang := range langs {
+		if lang == state.LangGo {
+			fmt.Printf("  .golangci.yml  (Go linting configuration)\n")
+		}
+	}
 	fmt.Println()
 	fmt.Println("Next steps:")
 	fmt.Println("  Run: autoclaude run")

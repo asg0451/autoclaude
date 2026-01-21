@@ -1,2 +1,27 @@
 /autoclaude
 k
+
+# Added by autoclaude
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+*.log
+logs/
+dist/
+build/
+coverage/
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+tmp/
+*.tmp
