@@ -17,6 +17,7 @@
       "Bash(cargo clippy:*)",
       "Bash(go work sync:*)",
       "Bash(go build:*)",
+      "Bash(go clean:*)",
       "Bash(go version:*)",
       "Bash(chmod:*)",
       "Bash(make generate:*)",

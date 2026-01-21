@@ -86,6 +86,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Step 0b: Ensure .gitignore has good defaults
+	if err := ensureGitignore(); err != nil {
+		return fmt.Errorf("failed to setup .gitignore: %w", err)
+	}
+
 	// Create prompt parameters
 	params := prompt.PromptParams{
 		Goal:        goal,
@@ -270,6 +275,113 @@ func initGitRepo() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// gitignoreDefaults are patterns that should be in every .gitignore
+var gitignoreDefaults = []string{
+	"# Environment and secrets",
+	".env",
+	".env.*",
+	"!.env.example",
+	"*.pem",
+	"*.key",
+	"",
+	"# OS files",
+	".DS_Store",
+	"Thumbs.db",
+	"",
+	"# Editor/IDE",
+	"*.swp",
+	"*.swo",
+	"*~",
+	".idea/",
+	"",
+	"# Logs",
+	"*.log",
+	"logs/",
+	"",
+	"# Build artifacts",
+	"dist/",
+	"build/",
+	"coverage/",
+	"",
+	"# Dependencies (language-specific)",
+	"node_modules/",
+	"__pycache__/",
+	"*.pyc",
+	".venv/",
+	"venv/",
+	"",
+	"# Temp files",
+	"tmp/",
+	"*.tmp",
+}
+
+// ensureGitignore creates or updates .gitignore with good defaults
+func ensureGitignore() error {
+	gitignorePath := ".gitignore"
+
+	// Read existing content if file exists
+	var existing string
+	if data, err := os.ReadFile(gitignorePath); err == nil {
+		existing = string(data)
+	}
+
+	// Collect patterns to add
+	var toAdd []string
+	for _, pattern := range gitignoreDefaults {
+		// Skip empty lines and comments when checking for existence
+		if pattern == "" || strings.HasPrefix(pattern, "#") {
+			toAdd = append(toAdd, pattern)
+			continue
+		}
+		// Check if pattern already exists (exact line match)
+		if !containsLine(existing, pattern) {
+			toAdd = append(toAdd, pattern)
+		}
+	}
+
+	// If nothing new to add (beyond comments/blanks), we're done
+	hasNewPatterns := false
+	for _, p := range toAdd {
+		if p != "" && !strings.HasPrefix(p, "#") {
+			hasNewPatterns = true
+			break
+		}
+	}
+	if !hasNewPatterns && existing != "" {
+		return nil
+	}
+
+	// Build new content
+	var newContent string
+	if existing != "" {
+		// Append to existing, with separator
+		newContent = strings.TrimRight(existing, "\n") + "\n\n# Added by autoclaude\n"
+		for _, p := range toAdd {
+			if p == "" || strings.HasPrefix(p, "#") {
+				continue // Skip structure, just add patterns
+			}
+			if !containsLine(existing, p) {
+				newContent += p + "\n"
+			}
+		}
+	} else {
+		// Create new file with full structure
+		newContent = strings.Join(toAdd, "\n") + "\n"
+	}
+
+	return os.WriteFile(gitignorePath, []byte(newContent), 0644)
+}
+
+// containsLine checks if content contains a line matching pattern exactly
+func containsLine(content, pattern string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.TrimSpace(line) == pattern {
+			return true
+		}
+	}
+	return false
 }
 
 // commitPlannerOutput commits all files created by the planner
