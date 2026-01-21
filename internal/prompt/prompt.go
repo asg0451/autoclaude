@@ -118,6 +118,7 @@ If you start trying to fix things yourself, you break the entire orchestration l
 - Are tests meaningful or just checking "code runs"?
 - Are tests brittle or fragile?
 - **CRITICALLY EVALUATE TEST USEFULNESS**: Do the tests actually verify important behavior? Will the feature break as soon as it hits the real world because of an oversight in the test suite? Look for gaps like: missing edge cases, only testing happy paths, not testing error conditions, or tests that pass but don't verify the right thing.
+- **INSPECT TEST OUTPUT IN VERBOSE MODE**: Run tests with verbose flags (e.g., `go test -v`, `pytest -v`) and scrutinize the output. Look for: unhandled or improperly handled errors, skipped tests that shouldn't be skipped, warnings that indicate problems, suspicious test behavior that passes despite clear issues, or errors being silently ignored.
 
 ## Important
 ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
