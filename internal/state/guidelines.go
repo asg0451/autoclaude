@@ -160,9 +160,9 @@ func goGuidelines() string {
 - Never use ` + "`fmt.Print*`" + ` or ` + "`println`" + ` for logging
 
 ### Type Safety
-- Prefer string-typed enums (`type Status string`) with constants to magic strings
+- Prefer string-typed enums (` + "`type Status string`" + `) with constants to magic strings
 - This gives type safety and makes refactoring easier
-- Example: `type Status string; const StatusActive Status = "active"`
+- Example: ` + "`type Status string; const StatusActive Status = \"active\"`" + `
 
 ### Concurrency
 - Prefer channels over shared memory when possible
