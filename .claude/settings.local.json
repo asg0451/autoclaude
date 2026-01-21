@@ -10,7 +10,8 @@
       "Bash(tree:*)",
       "Bash(echo:*)",
       "Bash(go test:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(chmod:*)"
     ]
   }
 }
