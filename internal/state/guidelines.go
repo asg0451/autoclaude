@@ -168,6 +168,8 @@ func goGuidelines() string {
 - Prefer channels over shared memory when possible
 - Document which goroutine owns mutable state
 - Use ` + "`sync.WaitGroup`" + ` to wait for goroutines to complete
+- Stick to ` + "`sync.Mutex`" + ` in almost all situations - do not jump to ` + "`sync.RWMutex`" + ` for performance without benchmark data proving it helps
+- RWMutex adds overhead and complexity; only use it when you have a read-heavy workload with measurable contention
 `
 }
 
