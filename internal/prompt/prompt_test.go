@@ -103,8 +103,8 @@ func TestGenerateFixer(t *testing.T) {
 	if !strings.Contains(content, "Handle null input in parser") {
 		t.Error("fixer prompt should contain current todo")
 	}
-	if !strings.Contains(content, "IMPORTANT") {
-		t.Error("fixer prompt should have IMPORTANT section")
+	if !strings.Contains(content, "CRITICAL") {
+		t.Error("fixer prompt should have CRITICAL section")
 	}
 	if !strings.Contains(content, "git add .") {
 		t.Error("fixer prompt should mention git add .")

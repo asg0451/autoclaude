@@ -55,6 +55,18 @@
       "Bash(golangci-lint:*)",
       "Bash(pkill:*)",
       "Read(/tmp/claude/**)"
+    ],
+    "deny": [
+      "Bash(*<< 'EOF'*)",
+      "Bash(*<< \"EOF\"*)",
+      "Bash(*<< EOF*)",
+      "Bash(*<< 'END'*)",
+      "Bash(*<< \"END\"*)",
+      "Bash(*<< END*)",
+      "Bash(*<< 'HEREDOC'*)",
+      "Bash(*<< \"HEREDOC\"*)",
+      "Bash(*<< HEREDOC*)",
+      "Bash(*<<<*)"
     ]
   }
 }

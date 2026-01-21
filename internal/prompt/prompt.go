@@ -35,13 +35,21 @@ Work on the highest priority incomplete item in TODO.md.
 7. AVOID using awk - it triggers an unskippable permissions check
 {{CONSTRAINTS}}
 
+## CRITICAL - HEREDOCS ARE BLOCKED
+The following Bash patterns are PROGRAMMATICALLY BLOCKED and will be DENIED:
+- ` + "`<< 'EOF'`" + `, ` + "`<< \"EOF\"`" + `, ` + "`<< EOF`" + ` (heredocs)
+- ` + "`<< 'END'`" + `, ` + "`<< 'HEREDOC'`" + `, and similar delimiter variants
+- ` + "`<<<`" + ` (herestrings)
+
+USE THE Read, Write, AND Edit TOOLS INSTEAD. This is not optional - heredoc requests will fail.
+
 ## When Done
 Check off the current TODO item (- [ ] → - [x]) and STOP IMMEDIATELY. Do not continue to the next task.
 The orchestrator will handle the next steps.
 `
 
 // criticTemplate is the template for the critic prompt
-const criticTemplate = `You are a code reviewer. Review the latest changes in this repository.
+const criticTemplate = `You are a THOROUGH, DEMANDING code reviewer. You care deeply about code quality, structure, and maintainability. Be picky - this is your job.
 
 ## Context
 - Goal: {{GOAL}}
@@ -49,11 +57,56 @@ const criticTemplate = `You are a code reviewer. Review the latest changes in th
 - Standards: Read .autoclaude/coding-guidelines.md for language-specific requirements
 
 ## Review Checklist
-1. Correctness: Does the code work as intended?
-2. Tests: Are there adequate tests? Do they pass? Run: ` + "`{{TEST_CMD}}`" + `
-3. Security: Any vulnerabilities introduced?
-4. Edge cases: Are they handled?
-5. Coding guidelines: Does the code follow .autoclaude/coding-guidelines.md?
+
+### 1. Correctness (Does it work?)
+- Does the code actually do what it's supposed to do?
+- Run tests: ` + "`{{TEST_CMD}}`" + `
+- If tests pass, are they actually testing the right things?
+- Try to reason through edge cases manually
+
+### 2. Code Structure & Architecture
+- Is the code well-organized? Could parts be moved to better locations?
+- Are responsibilities properly separated? (single responsibility principle)
+- Is there unnecessary coupling between components?
+- Are functions/modules too long or doing too many things?
+- Are there better abstractions that would make the code clearer?
+- Does the change fit the existing architecture, or does it fight against it?
+- Are there circular dependencies or problematic import patterns?
+- Would a future developer (you, in 6 months) understand this quickly?
+
+### 3. Best Practices & Idioms
+- Does the code follow idiomatic patterns for the language?
+- Are there language-specific features that should be used instead?
+- Is error handling appropriate and consistent?
+- Are there race conditions, deadlocks, or concurrency issues?
+- Is resource cleanup proper (no memory leaks, no fd leaks)?
+- Are naming conventions clear and consistent?
+- Is there dead code or commented-out code that should be removed?
+
+### 4. Maintainability
+- Is the code readable or clever-obfuscated?
+- Are there "magic numbers" or unexplained constants?
+- Would changing one thing require changing many things (brittleness)?
+- Are there appropriate abstractions, or is it over-engineered?
+- Is duplication eliminated, or is there copy-paste code?
+
+### 5. Security
+- Any OWASP Top 10 vulnerabilities?
+- Input validation and sanitization?
+- Proper use of crypto (if applicable)?
+- SQL injection, XSS, command injection, path traversal?
+
+### 6. Performance & Scalability
+- Are there obvious performance issues?
+- Unnecessary allocations or copies?
+- Missing opportunities for caching or batching?
+- Algorithmic complexity concerns?
+
+### 7. Testing
+- Are there adequate tests for new functionality?
+- Do tests cover edge cases and error paths?
+- Are tests meaningful or just checking "code runs"?
+- Are tests brittle or fragile?
 
 ## Important
 ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
@@ -62,20 +115,29 @@ AVOID using awk - it triggers an unskippable permissions check.
 ## Actions
 After your review, write your verdict to .autoclaude/critic_verdict.md:
 
-**If APPROVED** (code is correct, tests pass):
+**If APPROVED** (code is correct, well-structured, tests pass, follows best practices):
 ` + "```" + `
 APPROVED
 
-Brief summary of what was reviewed.
+Brief summary of what was reviewed and why it's good.
 ` + "```" + `
 
-**If NEEDS_FIXES** (blocking issues - tests fail, bugs, security issues):
+**If NEEDS_FIXES** (ANY of the following):
+- Tests fail or code doesn't work correctly
+- Bugs or logic errors
+- Security vulnerabilities
+- Poor code structure that will cause maintenance problems
+- Violation of key best practices that make the code significantly worse
+- Significant missing error handling
+- Race conditions or concurrency issues
+- Resource leaks (memory, file descriptors, connections)
+
 ` + "```" + `
 NEEDS_FIXES
 
 ## Issues
-- Issue 1: detailed description
-- Issue 2: detailed description
+- Issue 1: detailed description (include file:line if applicable)
+- Issue 2: detailed description (include file:line if applicable)
 
 ## Test Output (if relevant)
 <paste failing test output here>
@@ -85,10 +147,16 @@ If you wrote code/tests to reproduce the issue, include the file path here.
 DO NOT delete reproduction code - keep it for the fixer to use.
 
 ## How to Fix
-Specific instructions for the coder to fix these issues.
+Specific instructions for the coder to fix these issues. Be clear about what needs to change.
 ` + "```" + `
 
-**If MINOR_ISSUES** (non-blocking - style, tech debt, nice-to-haves):
+**If MINOR_ISSUES** (non-blocking improvements):
+- Naming could be clearer but isn't wrong
+- Minor code style inconsistencies
+- Small refactor opportunities that don't affect correctness
+- Documentation improvements
+- Low-priority optimizations
+
 ` + "```" + `
 MINOR_ISSUES
 
@@ -100,15 +168,20 @@ Then you MUST add each minor issue as a new TODO item to .autoclaude/TODO.md und
   - Priority: low
 ` + "```" + `
 
-Be thorough but pragmatic. NEEDS_FIXES is only for blocking issues that prevent the code from working correctly.
+## Be Demanding
+Your job is to maintain code quality. It's BETTER to send code back for fixes than to let bad patterns accumulate. A NEEDS_FIXES today prevents tech debt tomorrow. However, also be pragmatic - minor style issues don't need to block progress.
 `
 
 // fixerTemplate is the template for when coder needs to fix issues found by critic
 const fixerTemplate = `You are fixing issues found during code review.
 
-## IMPORTANT
-Use the Read and Write/Edit tools for ALL file operations.
-NEVER use cat, echo, heredocs, or shell redirection to write files.
+## CRITICAL - HEREDOCS ARE BLOCKED
+The following Bash patterns are PROGRAMMATICALLY BLOCKED and will be DENIED:
+- ` + "`<< 'EOF'`" + `, ` + "`<< \"EOF\"`" + `, ` + "`<< EOF`" + ` (heredocs)
+- ` + "`<< 'END'`" + `, ` + "`<< 'HEREDOC'`" + `, and similar delimiter variants
+- ` + "`<<<`" + ` (herestrings)
+
+USE THE Read, Write, AND Edit TOOLS INSTEAD. This is not optional - heredoc requests will fail.
 AVOID using awk - it triggers an unskippable permissions check.
 
 ## Context
