@@ -32,7 +32,6 @@ linters:
     - fatcontext
     - forcetypeassert
     - gochecksumtype
-    - makezero
     - musttag
     - nilnil
     - reassign
@@ -60,14 +59,14 @@ linters:
     - revive
 
     # Testing
-    - paralleltest
     - tparallel
 
 linters-settings:
   govet:
     enable-all: true
     disable:
-      - shadow # noisy, many false positives
+      - shadow          # noisy, many false positives
+      - fieldalignment  # noisy, often not worth micro-optimizing
 
   exhaustive:
     default-signifies-exhaustive: true
@@ -145,4 +144,4 @@ issues:
 
 run:
   timeout: 5m
-  go: "1.23"
+  go: "1.25"

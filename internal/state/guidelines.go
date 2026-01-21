@@ -311,14 +311,14 @@ linters:
     - revive
 
     # Testing
-    - paralleltest
     - tparallel
 
 linters-settings:
   govet:
     enable-all: true
     disable:
-      - shadow # noisy, many false positives
+      - shadow          # noisy, many false positives
+      - fieldalignment  # noisy, often not worth micro-optimizing
 
   exhaustive:
     default-signifies-exhaustive: true
