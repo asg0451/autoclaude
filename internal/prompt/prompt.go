@@ -70,7 +70,7 @@ If you start trying to fix things yourself, you break the entire orchestration l
 
 ### 1. Correctness (Does it work?)
 - Does the code actually do what it's supposed to do?
-- Run tests: ` + "`{{TEST_CMD}}`" + `
+- Run tests UNCACHED with race detector: ` + "`{{TEST_CMD}}`" + ` (add `-count=1 -race` for Go, `--cache-dir=/dev/null` for pytest, or similar flags for your language)
 - If tests pass, are they actually testing the right things?
 - Try to reason through edge cases manually
 
