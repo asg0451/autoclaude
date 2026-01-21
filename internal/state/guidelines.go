@@ -332,12 +332,6 @@ linters-settings:
       - name: redefines-builtin-id
       # Additional useful rules
       - name: confusing-results
-      - name: cognitive-complexity
-        arguments:
-          - 7
-      - name: cyclomatic
-        arguments:
-          - 10
       - name: modifies-value-receiver
       - name: use-any
       - name: identical-branches
