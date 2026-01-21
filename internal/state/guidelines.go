@@ -159,6 +159,11 @@ func goGuidelines() string {
 - Always use ` + "`log/slog`" + ` for logging, not ` + "`log`" + `
 - Never use ` + "`fmt.Print*`" + ` or ` + "`println`" + ` for logging
 
+### Type Safety
+- Prefer string-typed enums (`type Status string`) with constants to magic strings
+- This gives type safety and makes refactoring easier
+- Example: `type Status string; const StatusActive Status = "active"`
+
 ### Concurrency
 - Prefer channels over shared memory when possible
 - Document which goroutine owns mutable state

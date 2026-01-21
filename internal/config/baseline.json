@@ -12,6 +12,7 @@
       "Bash(go mod tidy:*)",
       "Bash(git restore:*)",
       "Bash(git reset:*)",
+      "Bash(git show:*)",
       "Bash(cargo check:*)",
       "Bash(cargo clean:*)",
       "Bash(cargo clippy:*)",
