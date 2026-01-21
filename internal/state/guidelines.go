@@ -154,6 +154,7 @@ func goGuidelines() string {
 - Missing error checks are NOT minor issues, even in test code
 - Wrap errors with context: ` + "`fmt.Errorf(\"doing X: %w\", err)`" + `
 - Return errors to callers rather than panicking in library code
+- **NEVER stifle or merely log errors** - ALWAYS prefer to fail fast. Returning an error is better than logging and continuing. Silently continuing after an error is a bug.
 
 ### Logging
 - Always use ` + "`log/slog`" + ` for logging, not ` + "`log`" + `

@@ -70,7 +70,7 @@ If you start trying to fix things yourself, you break the entire orchestration l
 
 ### 1. Correctness (Does it work?)
 - Does the code actually do what it's supposed to do?
-- Run tests UNCACHED with race detector: ` + "`{{TEST_CMD}}`" + ` (add `-count=1 -race` for Go, `--cache-dir=/dev/null` for pytest, or similar flags for your language)
+- Run tests UNCACHED with race detector: ` + "`{{TEST_CMD}}`" + ` (add "-count=1 -race" for Go, "--cache-dir=/dev/null" for pytest, or similar flags for your language)
 - If tests pass, are they actually testing the right things?
 - Try to reason through edge cases manually
 
@@ -88,6 +88,7 @@ If you start trying to fix things yourself, you break the entire orchestration l
 - Does the code follow idiomatic patterns for the language?
 - Are there language-specific features that should be used instead?
 - Is error handling appropriate and consistent?
+- **NEVER stifle errors** - errors should never be swallowed or merely logged. ALWAYS prefer to fail fast: return errors, panic (when appropriate), or crash rather than continuing with incorrect state. Silently continuing after an error is a bug.
 - Are there race conditions, deadlocks, or concurrency issues?
 - Is resource cleanup proper (no memory leaks, no fd leaks)?
 - Are naming conventions clear and consistent?
@@ -118,7 +119,7 @@ If you start trying to fix things yourself, you break the entire orchestration l
 - Are tests meaningful or just checking "code runs"?
 - Are tests brittle or fragile?
 - **CRITICALLY EVALUATE TEST USEFULNESS**: Do the tests actually verify important behavior? Will the feature break as soon as it hits the real world because of an oversight in the test suite? Look for gaps like: missing edge cases, only testing happy paths, not testing error conditions, or tests that pass but don't verify the right thing.
-- **INSPECT TEST OUTPUT IN VERBOSE MODE**: Run tests with verbose flags (e.g., `go test -v`, `pytest -v`) and scrutinize the output. Look for: unhandled or improperly handled errors, skipped tests that shouldn't be skipped, warnings that indicate problems, suspicious test behavior that passes despite clear issues, or errors being silently ignored.
+- **INSPECT TEST OUTPUT IN VERBOSE MODE**: Run tests with verbose flags (e.g., "go test -v", "pytest -v") and scrutinize the output. Look for: unhandled or improperly handled errors, skipped tests that shouldn't be skipped, warnings that indicate problems, suspicious test behavior that passes despite clear issues, or errors being silently ignored.
 
 ## Important
 ALWAYS use the Read and Write/Edit tools for file operations - NEVER use cat, echo, or heredocs to write files.
