@@ -13,6 +13,7 @@ type PromptParams struct {
 	Goal        string
 	TestCmd     string
 	Constraints string
+	PrunerMode  string // Optional: "aggressive" or empty for normal mode
 }
 
 // coderTemplate is the template for the coder prompt
@@ -518,6 +519,81 @@ After the user confirms the plan is good:
 2. Exit immediately - the orchestrator will take over from here
 `
 
+// prunerTemplate is the template for the TODO pruner
+const prunerTemplate = `You are a TODO list pruner. Your job is to clean up and organize the TODO.md file.
+
+## Goal
+{{GOAL}}
+
+## Test Command
+` + "`{{TEST_CMD}}`" + `
+
+{{PRUNER_MODE}}
+
+## Your Task
+
+Read .autoclaude/TODO.md and perform the following operations:
+
+### 1. Group Similar Low-Priority Items
+Look for low-priority TODOs that are semantically related and can be grouped together.
+- Items that address the same underlying issue or concern
+- Small refactorings in the same file or module
+- Similar documentation improvements
+- Minor style or naming fixes in related areas
+
+When grouping:
+- Create a single grouped TODO that captures all the items
+- Use a clear, descriptive name like "Refactor X module: address A, B, C issues"
+- Mark all the individual items as completed (- [x])
+- Only group items with Priority: low (never high or medium)
+
+### 2. Auto-Complete Stale Minor Issues
+Mark low-priority TODOs as completed if:
+- The referenced code has significantly changed (file no longer exists or major refactoring occurred)
+- The issue described is no longer relevant given the current state of the codebase
+- The TODO was added a long time ago and 5+ high-priority TODOs have been completed since
+
+BE CONSERVATIVE here. Only auto-complete if you're confident the issue is resolved or irrelevant. When in doubt, leave it.
+
+### 3. Deduplicate
+Merge semantically duplicate TODOs:
+- Two or more TODOs that describe essentially the same task
+- TODOs that would be completed by the same code change
+- Overlapping improvement suggestions
+
+When deduplicating:
+- Keep the most complete/clearly written version
+- Mark duplicates as completed
+- Combine any unique details into the kept TODO
+
+### 4. Preserve Important Information
+- Keep ALL high and medium priority TODOs (do not group or auto-complete them)
+- Preserve all completion criteria
+- Maintain dependencies between tasks
+- Keep the structure organized with sections
+
+## Output Format
+
+After processing, write the updated TODO.md file with your changes. Use the Edit tool to make precise changes.
+
+At the END of the TODO.md file, add a section like this:
+
+` + "```" + `
+## Pruning Summary (auto-generated)
+- Grouped X related low-priority items into Y groups
+- Auto-completed Z stale minor issues (reasons: <brief explanation>)
+- Deduplicated D items
+- Total TODOs before: N, after: M
+` + "```" + `
+
+## Important
+- Use the Read and Edit tools for file operations - NEVER use cat, echo, or heredocs
+- AVOID using awk - it triggers an unskippable permissions check
+- Be conservative - when in doubt, leave the TODO as-is
+- Only modify Priority: low items when grouping or auto-completing
+- Stop after writing the updated TODO.md file
+`
+
 // expandTemplate replaces template variables with values
 func expandTemplate(template string, params PromptParams) string {
 	result := template
@@ -529,6 +605,12 @@ func expandTemplate(template string, params PromptParams) string {
 		constraintsSection = fmt.Sprintf("\n## Additional Constraints\n%s", params.Constraints)
 	}
 	result = strings.ReplaceAll(result, "{{CONSTRAINTS}}", constraintsSection)
+
+	prunerModeSection := ""
+	if params.PrunerMode == "aggressive" {
+		prunerModeSection = "\n## Mode\nAggressive pruning enabled - you may group more items and auto-complete borderline cases.\n"
+	}
+	result = strings.ReplaceAll(result, "{{PRUNER_MODE}}", prunerModeSection)
 
 	return result
 }
@@ -561,6 +643,11 @@ func GenerateEvaluator(params PromptParams) string {
 // GeneratePlanner generates the planner prompt (for init)
 func GeneratePlanner(params PromptParams) string {
 	return expandTemplate(plannerTemplate, params)
+}
+
+// GeneratePruner generates the pruner prompt for TODO list hygiene
+func GeneratePruner(params PromptParams) string {
+	return expandTemplate(prunerTemplate, params)
 }
 
 // SavePrompts saves all prompts to the prompts directory

@@ -17,6 +17,7 @@ Commands:
   run      Start the coder→critic loop
   resume   Resume from last saved state after interruption
   status   Display current progress and state
+  prune    Clean up and organize the TODO list
   watch    Watch progress with auto-refresh`,
 }
 

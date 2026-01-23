@@ -30,6 +30,8 @@ type State struct {
 	RetryCount    int    `json:"retryCount,omitempty"`
 	LastError     string `json:"lastError,omitempty"`
 	Stats         *Stats `json:"stats,omitempty"`
+	LastPruneAt   int64  `json:"lastPruneAt,omitempty"`
+	TodosSincePrune int   `json:"todosSincePrune,omitempty"`
 }
 
 // Stats tracks diagnostic information about the run
@@ -45,13 +47,14 @@ type Stats struct {
 }
 
 const (
-	AutoclaudeDir     = ".autoclaude"
-	StateFile         = "state.json"
-	TodoFile          = "TODO.md"
-	NotesFile         = "NOTES.md"
-	StatusFile        = "STATUS.md"
-	CriticVerdictFile = "critic_verdict.md"
-	CurrentTodoFile   = "current_todo.txt"
+	AutoclaudeDir      = ".autoclaude"
+	StateFile          = "state.json"
+	TodoFile           = "TODO.md"
+	NotesFile          = "NOTES.md"
+	StatusFile         = "STATUS.md"
+	CriticVerdictFile  = "critic_verdict.md"
+	CurrentTodoFile    = "current_todo.txt"
+	DefaultPruneInterval = 5 // Number of TODOs to complete before auto-pruning
 )
 
 // StateDir returns the path to the .autoclaude directory

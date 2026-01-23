@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.coldcutz.net/autoclaude/internal/claude"
@@ -15,7 +16,10 @@ import (
 
 const maxFixRetries = 3
 
-var runCoderSonnet bool
+var (
+	runCoderSonnet bool
+	runPruneInterval int // 0 means use default
+)
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -37,6 +41,7 @@ Each phase runs in a fresh Claude session to maintain quality.`,
 func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.Flags().BoolVar(&runCoderSonnet, "coder-sonnet", false, "Use Sonnet model for coder/fixer phases")
+	runCmd.Flags().IntVar(&runPruneInterval, "prune-interval", 0, "Number of TODOs between auto-pruning (0 for default 5, -1 to disable)")
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
@@ -81,6 +86,14 @@ func runRun(cmd *cobra.Command, args []string) error {
 	coderModel := ""
 	if runCoderSonnet {
 		coderModel = "sonnet"
+	}
+
+	// Determine prune interval
+	pruneInterval := state.DefaultPruneInterval
+	if runPruneInterval > 0 {
+		pruneInterval = runPruneInterval
+	} else if runPruneInterval == -1 {
+		pruneInterval = 0 // Disabled
 	}
 
 	fmt.Println("Starting autoclaude loop...")
@@ -201,6 +214,16 @@ func runRun(cmd *cobra.Command, args []string) error {
 	nextTodo:
 		state.ClearCurrentTodo()
 		s.Save()
+
+		// Check if we need to run periodic pruning
+		if pruneInterval > 0 && s.Stats.TodosCompleted > 0 && s.Stats.TodosCompleted%pruneInterval == 0 {
+			s.TodosSincePrune = 0
+			s.LastPruneAt = time.Now().Unix()
+			s.Save()
+			if err := runInlinePruner(s, false); err != nil {
+				fmt.Printf("  ⚠ Pruning failed: %v\n", err)
+			}
+		}
 	}
 
 	// === EVALUATOR PHASE ===
