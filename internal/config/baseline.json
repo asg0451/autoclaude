@@ -59,7 +59,8 @@
       "Bash(gofmt:*)",
       "Bash(golangci-lint:*)",
       "Bash(pkill:*)",
-      "Read(/tmp/claude/**)"
+      "Read(/tmp/claude/**)",
+      "Read(~/.claude/projects/*/*/tool-results)"
     ],
     "deny": [
       "Bash(*<< 'EOF'*)",
