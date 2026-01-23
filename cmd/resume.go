@@ -74,10 +74,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Resuming autoclaude loop...")
 	fmt.Printf("  Current step: %s\n", s.Step)
-	fmt.Printf("  TODO iteration: %d\n", s.Iteration)
-	if currentTodo := state.GetCurrentTodo(); currentTodo != "(unknown)" {
-		fmt.Printf("  Current TODO: %s\n", currentTodo)
-	}
+	fmt.Printf("  Task iteration: %d\n", s.Iteration)
 	if coderModel != "" {
 		fmt.Printf("  Coder model: %s\n", coderModel)
 	}
@@ -103,9 +100,9 @@ func runResume(cmd *cobra.Command, args []string) error {
 	// Resume from current step - run ONE phase then continue into main loop
 	switch s.Step {
 	case state.StepCoder:
-		// Re-run coder for current TODO
+		// Re-run coder for current task
 		fmt.Printf("=== RESUMING CODER ===\n")
-		s.UpdateStatus(fmt.Sprintf("Resuming: %s", state.GetCurrentTodo()))
+		s.UpdateStatus("Resuming current task")
 
 		commitBefore := getCommitHash()
 		coderPrompt, _ := prompt.LoadCoder()
@@ -116,7 +113,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 		checkCommitCreated(commitBefore, "Coder")
 
 	case state.StepCritic:
-		// Run critic for current TODO, then continue
+		// Run critic for current task, then continue
 		fmt.Printf("=== RESUMING CRITIC ===\n")
 		s.UpdateStatus("Resuming critic review...")
 
@@ -136,7 +133,7 @@ func runResume(cmd *cobra.Command, args []string) error {
 			s.Stats.FixAttempts++
 
 			fixerCommitBefore := getCommitHash()
-			fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
+			fixerPrompt := prompt.GenerateFixer(params, content, "current task")
 			promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
 			if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 				return fmt.Errorf("fixer phase failed: %w", err)
@@ -144,7 +141,6 @@ func runResume(cmd *cobra.Command, args []string) error {
 			checkCommitCreated(fixerCommitBefore, "Fixer")
 		} else if verdict == state.VerdictApproved || verdict == state.VerdictMinorIssues {
 			s.Stats.TodosCompleted++
-			state.ClearCurrentTodo()
 		}
 
 	case state.StepEvaluator:
@@ -179,22 +175,19 @@ func runResume(cmd *cobra.Command, args []string) error {
 
 // continueRunLoop continues the main loop after resuming
 func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath string, coderModel string) error {
-	// Process remaining TODOs
-	for hasIncompleteTodos() {
+	// Process remaining tasks
+	for hasPendingTasks() {
 		s.Iteration++
 		s.RetryCount = 0
 		s.Save()
 
-		currentTodo := state.GetNextTodo()
-		state.SetCurrentTodo(currentTodo)
 		s.Stats.TodosAttempted++
 
 		// === CODER PHASE ===
-		fmt.Printf("\n=== TODO %d: CODER ===\n", s.Iteration)
-		fmt.Printf("  Working on: %s\n", currentTodo)
+		fmt.Printf("\n=== TASK %d: CODER ===\n", s.Iteration)
 		s.Step = state.StepCoder
 		s.Save()
-		s.UpdateStatus(fmt.Sprintf("Working on: %s", currentTodo))
+		s.UpdateStatus("Working on next pending task")
 
 		commitBefore := getCommitHash()
 		coderPrompt, _ := prompt.LoadCoder()
@@ -207,7 +200,7 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 		// Inner loop: critic review with fix retries
 		wasApproved := false
 		for retry := 0; retry < maxFixRetries; retry++ {
-			fmt.Printf("=== TODO %d: CRITIC (attempt %d/%d) ===\n", s.Iteration, retry+1, maxFixRetries)
+			fmt.Printf("=== TASK %d: CRITIC (attempt %d/%d) ===\n", s.Iteration, retry+1, maxFixRetries)
 			s.Step = state.StepCritic
 			s.RetryCount = retry
 			s.Save()
@@ -232,17 +225,17 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 					s.Stats.FixSuccesses++
 				}
 				wasApproved = true
-				goto nextTodo
+				goto nextTask
 
 			case state.VerdictMinorIssues:
-				fmt.Println("  ✓ Critic: MINOR_ISSUES (added to TODOs for later)")
+				fmt.Println("  ✓ Critic: MINOR_ISSUES (added tasks for later)")
 				s.Stats.CriticMinor++
 				s.Stats.TodosCompleted++
 				if retry > 0 {
 					s.Stats.FixSuccesses++
 				}
 				wasApproved = true
-				goto nextTodo
+				goto nextTask
 
 			case state.VerdictNeedsFixes:
 				fmt.Printf("  ✗ Critic: NEEDS_FIXES (retry %d/%d)\n", retry+1, maxFixRetries)
@@ -251,11 +244,11 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 					fmt.Println("=== FIXER ===")
 					s.Step = state.StepCoder
 					s.Save()
-					s.UpdateStatus(fmt.Sprintf("Fixing: %s", currentTodo))
+					s.UpdateStatus("Fixing current task")
 					s.Stats.FixAttempts++
 
 					fixerCommitBefore := getCommitHash()
-					fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
+					fixerPrompt := prompt.GenerateFixer(params, content, "current task")
 					promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
 					if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 						return fmt.Errorf("fixer phase failed: %w", err)
@@ -272,11 +265,10 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 		}
 
 		if !wasApproved {
-			fmt.Printf("  ⚠ Max retries (%d) reached for TODO %d, moving on\n", maxFixRetries, s.Iteration)
+			fmt.Printf("  ⚠ Max retries (%d) reached for task %d, moving on\n", maxFixRetries, s.Iteration)
 		}
 
-	nextTodo:
-		state.ClearCurrentTodo()
+	nextTask:
 		s.Save()
 	}
 
@@ -306,8 +298,8 @@ func continueRunLoop(s *state.State, params prompt.PromptParams, autoclaudePath 
 	config.RemoveEvaluatorStopHook(autoclaudePath)
 	config.RemoveEvaluationComplete()
 
-	// Check if evaluator added more TODOs (user requested more work)
-	if hasIncompleteTodos() {
+	// Check if evaluator added more tasks (user requested more work)
+	if hasPendingTasks() {
 		fmt.Println("User requested more work. Continuing...")
 		return continueRunLoop(s, params, autoclaudePath, coderModel)
 	}

@@ -1,2 +1,4 @@
-- [ ] the planner claude shouldnt exit immediately in case the user wants to iterate more. instruct the user to ctrl-c the planner claude when theyre done then we resume
-- [ ] default test command per language & specify language(s)
+- [ ]  > You're out of extra usage · resets 2am (Asia/Tokyo)
+
+  when the agents get this error, they stop and trigger autoclaude. since it doesnt get a signal about what to do next it just cycles the agents forever. can we detect this somehow? if we dont
+  get the proper state transition signal and see this then sleep ..?

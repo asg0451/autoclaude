@@ -76,6 +76,9 @@ func RunInteractive(prompt string, permissionMode string, model string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	// Enable cross-session task persistence
+	cmd.Env = append(os.Environ(), "CLAUDE_CODE_TASK_LIST_ID=autoclaude")
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}

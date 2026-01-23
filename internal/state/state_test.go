@@ -82,68 +82,10 @@ func TestExists(t *testing.T) {
 	}
 }
 
-func TestGetNextTodo(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldDir)
-
-	os.MkdirAll(AutoclaudeDir, 0755)
-
-	todoContent := `# TODOs
-
-## Pending
-- [x] Completed task
-- [ ] First incomplete task
-- [ ] Second incomplete task
-`
-	os.WriteFile(TodoPath(), []byte(todoContent), 0644)
-
-	next := GetNextTodo()
-	if next != "First incomplete task" {
-		t.Errorf("expected 'First incomplete task', got %q", next)
-	}
-}
-
-func TestGetNextTodoEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldDir)
-
-	os.MkdirAll(AutoclaudeDir, 0755)
-
-	todoContent := `# TODOs
-
-## Completed
-- [x] All done
-`
-	os.WriteFile(TodoPath(), []byte(todoContent), 0644)
-
-	next := GetNextTodo()
-	if next != "(no incomplete TODOs)" {
-		t.Errorf("expected '(no incomplete TODOs)', got %q", next)
-	}
-}
-
-func TestCurrentTodo(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldDir)
-
-	os.MkdirAll(AutoclaudeDir, 0755)
-
-	SetCurrentTodo("Test TODO item")
-	got := GetCurrentTodo()
-	if got != "Test TODO item" {
-		t.Errorf("expected 'Test TODO item', got %q", got)
-	}
-
-	ClearCurrentTodo()
-	got = GetCurrentTodo()
-	if got != "(unknown)" {
-		t.Errorf("expected '(unknown)' after clear, got %q", got)
+func TestPendingTasksPath(t *testing.T) {
+	expected := AutoclaudeDir + "/pending_tasks"
+	if PendingTasksPath() != expected {
+		t.Errorf("expected %q, got %q", expected, PendingTasksPath())
 	}
 }
 
@@ -223,8 +165,6 @@ func TestUpdateStatus(t *testing.T) {
 	s.Step = StepCritic
 	s.RetryCount = 1
 
-	SetCurrentTodo("Current task")
-
 	err := s.UpdateStatus("Running tests...")
 	if err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
@@ -236,11 +176,8 @@ func TestUpdateStatus(t *testing.T) {
 	if !contains(content, "critic") {
 		t.Error("STATUS.md should contain step name")
 	}
-	if !contains(content, "TODO #:") {
-		t.Error("STATUS.md should contain TODO number")
-	}
-	if !contains(content, "Current task") {
-		t.Error("STATUS.md should contain current todo")
+	if !contains(content, "Task #:") {
+		t.Error("STATUS.md should contain task number")
 	}
 	if !contains(content, "Running tests...") {
 		t.Error("STATUS.md should contain update message")

@@ -10,7 +10,7 @@ import (
 	"go.coldcutz.net/autoclaude/internal/state"
 )
 
-func TestHasIncompleteTodos(t *testing.T) {
+func TestHasPendingTasks(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -18,27 +18,35 @@ func TestHasIncompleteTodos(t *testing.T) {
 
 	os.MkdirAll(state.AutoclaudeDir, 0755)
 
+	pendingTasksPath := state.AutoclaudeDir + "/pending_tasks"
+
 	// No file
-	if hasIncompleteTodos() {
-		t.Error("should return false when no TODO file")
+	if hasPendingTasks() {
+		t.Error("should return false when no pending_tasks file")
 	}
 
 	// Empty file
-	os.WriteFile(state.TodoPath(), []byte(""), 0644)
-	if hasIncompleteTodos() {
+	os.WriteFile(pendingTasksPath, []byte(""), 0644)
+	if hasPendingTasks() {
 		t.Error("should return false for empty file")
 	}
 
-	// All complete
-	os.WriteFile(state.TodoPath(), []byte("- [x] Done\n- [x] Also done"), 0644)
-	if hasIncompleteTodos() {
-		t.Error("should return false when all complete")
+	// File contains "no"
+	os.WriteFile(pendingTasksPath, []byte("no"), 0644)
+	if hasPendingTasks() {
+		t.Error("should return false when file contains 'no'")
 	}
 
-	// Has incomplete
-	os.WriteFile(state.TodoPath(), []byte("- [x] Done\n- [ ] Not done"), 0644)
-	if !hasIncompleteTodos() {
-		t.Error("should return true when incomplete exists")
+	// File contains "yes"
+	os.WriteFile(pendingTasksPath, []byte("yes"), 0644)
+	if !hasPendingTasks() {
+		t.Error("should return true when file contains 'yes'")
+	}
+
+	// File contains "yes" with whitespace
+	os.WriteFile(pendingTasksPath, []byte("  yes  \n"), 0644)
+	if !hasPendingTasks() {
+		t.Error("should return true when file contains 'yes' with whitespace")
 	}
 }
 

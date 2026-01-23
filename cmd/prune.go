@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"go.coldcutz.net/autoclaude/internal/claude"
@@ -53,11 +52,6 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	s, err := state.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
-	}
-
-	// Check if TODO.md exists
-	if _, err := os.ReadFile(state.TodoPath()); err != nil {
-		return fmt.Errorf("failed to read TODO.md: %w", err)
 	}
 
 	// Build prompt params

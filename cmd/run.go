@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -110,23 +111,19 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 	defer config.RemoveStopHook(autoclaudePath)
 
-	// Outer loop: process TODOs until all complete (no limit)
-	for hasIncompleteTodos() {
+	// Outer loop: process tasks until all complete (no limit)
+	for hasPendingTasks() {
 		s.Iteration++
 		s.RetryCount = 0
 		s.Save()
 
-		// Get next TODO and save it as current (before coder checks it off)
-		currentTodo := state.GetNextTodo()
-		state.SetCurrentTodo(currentTodo)
 		s.Stats.TodosAttempted++
 
 		// === CODER PHASE ===
-		fmt.Printf("\n=== TODO %d: CODER ===\n", s.Iteration)
-		fmt.Printf("  Working on: %s\n", currentTodo)
+		fmt.Printf("\n=== TASK %d: CODER ===\n", s.Iteration)
 		s.Step = state.StepCoder
 		s.Save()
-		s.UpdateStatus(fmt.Sprintf("Working on: %s", currentTodo))
+		s.UpdateStatus("Working on next pending task")
 
 		commitBefore := getCommitHash()
 		coderPrompt, _ := prompt.LoadCoder()
@@ -140,7 +137,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		wasApproved := false
 		for retry := 0; retry < maxFixRetries; retry++ {
 			// === CRITIC PHASE ===
-			fmt.Printf("=== TODO %d: CRITIC (attempt %d/%d) ===\n", s.Iteration, retry+1, maxFixRetries)
+			fmt.Printf("=== TASK %d: CRITIC (attempt %d/%d) ===\n", s.Iteration, retry+1, maxFixRetries)
 			s.Step = state.StepCritic
 			s.RetryCount = retry
 			s.Save()
@@ -165,17 +162,17 @@ func runRun(cmd *cobra.Command, args []string) error {
 					s.Stats.FixSuccesses++
 				}
 				wasApproved = true
-				goto nextTodo
+				goto nextTask
 
 			case state.VerdictMinorIssues:
-				fmt.Println("  ✓ Critic: MINOR_ISSUES (added to TODOs for later)")
+				fmt.Println("  ✓ Critic: MINOR_ISSUES (added tasks for later)")
 				s.Stats.CriticMinor++
 				s.Stats.TodosCompleted++
 				if retry > 0 {
 					s.Stats.FixSuccesses++
 				}
 				wasApproved = true
-				goto nextTodo
+				goto nextTask
 
 			case state.VerdictNeedsFixes:
 				fmt.Printf("  ✗ Critic: NEEDS_FIXES (retry %d/%d)\n", retry+1, maxFixRetries)
@@ -185,12 +182,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 					fmt.Println("=== FIXER ===")
 					s.Step = state.StepCoder
 					s.Save()
-					s.UpdateStatus(fmt.Sprintf("Fixing: %s", currentTodo))
+					s.UpdateStatus("Fixing current task")
 					s.Stats.FixAttempts++
 
 					fixerCommitBefore := getCommitHash()
-					// Use state.GetCurrentTodo() to read from file (robust across restarts)
-					fixerPrompt := prompt.GenerateFixer(params, content, state.GetCurrentTodo())
+					fixerPrompt := prompt.GenerateFixer(params, content, "current task")
 					promptPath, _ = prompt.WriteCurrentPrompt(fixerPrompt)
 					if err := runClaudePhase(promptPath, s.Stats, coderModel); err != nil {
 						return fmt.Errorf("fixer phase failed: %w", err)
@@ -208,11 +204,10 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 		// Exhausted retries
 		if !wasApproved {
-			fmt.Printf("  ⚠ Max retries (%d) reached for TODO %d, moving on\n", maxFixRetries, s.Iteration)
+			fmt.Printf("  ⚠ Max retries (%d) reached for task %d, moving on\n", maxFixRetries, s.Iteration)
 		}
 
-	nextTodo:
-		state.ClearCurrentTodo()
+	nextTask:
 		s.Save()
 
 		// Check if we need to run periodic pruning
@@ -252,10 +247,10 @@ func runRun(cmd *cobra.Command, args []string) error {
 	config.RemoveEvaluatorStopHook(autoclaudePath)
 	config.RemoveEvaluationComplete()
 
-	// Check if evaluator added more TODOs (user requested more work)
-	if hasIncompleteTodos() {
+	// Check if evaluator added more tasks (user requested more work)
+	if hasPendingTasks() {
 		fmt.Println("User requested more work. Continuing...")
-		return runRun(cmd, args) // Recursive call to process new TODOs
+		return runRun(cmd, args) // Recursive call to process new tasks
 	}
 
 	s.Step = state.StepDone
@@ -278,13 +273,13 @@ func runClaudePhase(promptFile string, stats *state.Stats, model string) error {
 	return claude.RunInteractiveWithPromptFile(promptFile, "acceptEdits", model)
 }
 
-// hasIncompleteTodos checks if there are incomplete TODOs
-func hasIncompleteTodos() bool {
-	data, err := os.ReadFile(state.TodoPath())
+// hasPendingTasks checks if there are pending tasks by reading the pending_tasks file
+func hasPendingTasks() bool {
+	data, err := os.ReadFile(filepath.Join(state.AutoclaudeDir, "pending_tasks"))
 	if err != nil {
 		return false
 	}
-	return strings.Contains(string(data), "- [ ]")
+	return strings.TrimSpace(string(data)) == "yes"
 }
 
 // getCommitHash returns the current HEAD commit hash (short form)

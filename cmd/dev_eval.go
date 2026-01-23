@@ -83,12 +83,12 @@ func runDevEval(cmd *cobra.Command, args []string) error {
 		fmt.Println("\n=== EVALUATION COMPLETE ===")
 		fmt.Println("User confirmed done.")
 		config.RemoveEvaluationComplete()
-	} else if hasIncompleteTodos() {
+	} else if hasPendingTasks() {
 		fmt.Println("\n=== MORE WORK NEEDED ===")
-		fmt.Println("Evaluator added TODOs or user requested changes.")
+		fmt.Println("Evaluator added tasks or user requested changes.")
 	} else {
 		fmt.Println("\n=== EVALUATOR EXITED ===")
-		fmt.Println("No evaluation_complete marker and no incomplete TODOs.")
+		fmt.Println("No evaluation_complete marker and no pending tasks.")
 	}
 
 	return nil

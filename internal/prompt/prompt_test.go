@@ -26,8 +26,11 @@ func TestGenerateCoder(t *testing.T) {
 	if !strings.Contains(content, "Must be production ready") {
 		t.Error("coder prompt should contain constraints")
 	}
-	if !strings.Contains(content, "TODO.md") {
-		t.Error("coder prompt should reference TODO.md")
+	if !strings.Contains(content, "TaskList") {
+		t.Error("coder prompt should reference TaskList tool")
+	}
+	if !strings.Contains(content, "pending_tasks") {
+		t.Error("coder prompt should reference pending_tasks file")
 	}
 	if !strings.Contains(content, "git add .") {
 		t.Error("coder prompt should mention git add .")
@@ -154,8 +157,11 @@ func TestGeneratePlanner(t *testing.T) {
 	if !strings.Contains(content, "plan.md") {
 		t.Error("planner prompt should mention plan.md")
 	}
-	if !strings.Contains(content, "TODO.md") {
-		t.Error("planner prompt should mention TODO.md")
+	if !strings.Contains(content, "TaskCreate") {
+		t.Error("planner prompt should mention TaskCreate tool")
+	}
+	if !strings.Contains(content, "pending_tasks") {
+		t.Error("planner prompt should mention pending_tasks file")
 	}
 	if !strings.Contains(content, "AskUserQuestion") {
 		t.Error("planner prompt should mention AskUserQuestion")
@@ -333,14 +339,14 @@ func TestFixerPromptCommitInstructions(t *testing.T) {
 	}
 }
 
-func TestCriticPromptMinorIssuesTodo(t *testing.T) {
+func TestCriticPromptMinorIssuesTask(t *testing.T) {
 	params := PromptParams{Goal: "test", TestCmd: "test"}
 	content := GenerateCritic(params)
 
-	if !strings.Contains(content, "YOU MUST write each GENUINELY NEW minor issue") {
-		t.Error("critic should instruct adding minor issues as TODOs")
+	if !strings.Contains(content, "YOU MUST use TaskCreate") {
+		t.Error("critic should instruct using TaskCreate for minor issues")
 	}
-	if !strings.Contains(content, "Priority: low") {
-		t.Error("critic should show TODO format with priority")
+	if !strings.Contains(content, "pending_tasks") {
+		t.Error("critic should mention pending_tasks file")
 	}
 }

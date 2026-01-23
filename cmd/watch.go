@@ -19,7 +19,7 @@ var watchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Watch autoclaude progress with auto-refresh",
 	Long: `Display the current status of autoclaude with auto-refresh.
-Shows what the agent is currently working on, completed TODOs, and remaining work.
+Shows the current step and iteration.
 Refreshes automatically every n seconds (default: 2).`,
 	RunE: runWatch,
 }
@@ -100,75 +100,16 @@ func displayWatch(_ context.Context) error {
 	fmt.Printf("Step:       %s%s\033[0m\n", stepColor, s.Step)
 	fmt.Printf("Iteration:  %d/%d\n", s.Iteration, s.MaxIterations)
 
-	// Current TODO
-	currentTodo := state.GetCurrentTodo()
-	if currentTodo != "(unknown)" && currentTodo != "" {
-		fmt.Printf("\n\033[1;33m► Working on:\033[0m\n")
-		fmt.Printf("  %s\n", currentTodo)
-	} else {
-		fmt.Println("\n► Not actively working on a TODO")
-	}
-
-	// Load and parse TODOs
-	todoData, err := os.ReadFile(state.TodoPath())
+	// Check pending tasks status
+	pendingTasksData, err := os.ReadFile(state.PendingTasksPath())
 	if err != nil {
-		fmt.Println("\n  (no TODO.md found)")
-		return nil
-	}
-
-	lines := strings.Split(string(todoData), "\n")
-
-	var completed []string
-	var incomplete []string
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- [x]") || strings.HasPrefix(trimmed, "- [X]") {
-			taskName := strings.TrimSpace(strings.TrimPrefix(trimmed, "- [x]"))
-			taskName = strings.TrimSpace(strings.TrimPrefix(taskName, "- [X]"))
-			// Extract just the task name before any description
-			if idx := strings.Index(taskName, " - "); idx > 0 {
-				taskName = taskName[:idx]
-			}
-			completed = append(completed, taskName)
-		} else if strings.HasPrefix(trimmed, "- [ ]") {
-			taskName := strings.TrimSpace(strings.TrimPrefix(trimmed, "- [ ]"))
-			// Extract just the task name before any description
-			if idx := strings.Index(taskName, " - "); idx > 0 {
-				taskName = taskName[:idx]
-			}
-			incomplete = append(incomplete, taskName)
-		}
-	}
-
-	total := len(completed) + len(incomplete)
-
-	// Progress bar
-	fmt.Println()
-	if total > 0 {
-		percent := float64(len(completed)) / float64(total) * 100
-		barWidth := 40
-		filled := int(float64(barWidth) * float64(len(completed)) / float64(total))
-		bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
-
-		fmt.Printf("Progress:  [%s] %.0f%% (%d/%d)\n", bar, percent, len(completed), total)
+		fmt.Println("\n► Pending tasks: unknown")
 	} else {
-		fmt.Println("No TODOs found")
-	}
-
-	// Completed TODOs
-	if len(completed) > 0 {
-		fmt.Printf("\n\033[1;32m✓ Completed (%d):\033[0m\n", len(completed))
-		for _, todo := range completed {
-			fmt.Printf("  ✓ %s\n", todo)
-		}
-	}
-
-	// Remaining TODOs
-	if len(incomplete) > 0 {
-		fmt.Printf("\n\033[1;31m✗ Remaining (%d):\033[0m\n", len(incomplete))
-		for _, todo := range incomplete {
-			fmt.Printf("  ✗ %s\n", todo)
+		pending := strings.TrimSpace(string(pendingTasksData))
+		if pending == "yes" {
+			fmt.Println("\n\033[1;33m► Pending tasks: yes\033[0m")
+		} else {
+			fmt.Println("\n\033[1;32m► Pending tasks: no\033[0m")
 		}
 	}
 

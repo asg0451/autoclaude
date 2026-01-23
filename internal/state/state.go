@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // Step represents the current step in the coder-critic loop
@@ -47,14 +46,14 @@ type Stats struct {
 }
 
 const (
-	AutoclaudeDir      = ".autoclaude"
-	StateFile          = "state.json"
-	TodoFile           = "TODO.md"
-	NotesFile          = "NOTES.md"
-	StatusFile         = "STATUS.md"
-	CriticVerdictFile  = "critic_verdict.md"
-	CurrentTodoFile    = "current_todo.txt"
-	DefaultPruneInterval = 5 // Number of TODOs to complete before auto-pruning
+	AutoclaudeDir        = ".autoclaude"
+	StateFile            = "state.json"
+	TodoFile             = "TODO.md" // Deprecated: kept for migration
+	NotesFile            = "NOTES.md"
+	StatusFile           = "STATUS.md"
+	CriticVerdictFile    = "critic_verdict.md"
+	PendingTasksFile     = "pending_tasks"
+	DefaultPruneInterval = 5 // Number of tasks to complete before auto-pruning
 )
 
 // StateDir returns the path to the .autoclaude directory
@@ -123,46 +122,9 @@ func ClearCriticVerdict() {
 	os.Remove(CriticVerdictPath())
 }
 
-// CurrentTodoPath returns the path to the current_todo.txt file
-func CurrentTodoPath() string {
-	return filepath.Join(AutoclaudeDir, CurrentTodoFile)
-}
-
-// GetNextTodo returns the first incomplete TODO item from TODO.md
-func GetNextTodo() string {
-	data, err := os.ReadFile(TodoPath())
-	if err != nil {
-		return "(unknown)"
-	}
-
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- [ ]") {
-			// Return the TODO text without the checkbox
-			return strings.TrimSpace(strings.TrimPrefix(trimmed, "- [ ]"))
-		}
-	}
-	return "(no incomplete TODOs)"
-}
-
-// SetCurrentTodo saves the current TODO being worked on to a file
-func SetCurrentTodo(todo string) {
-	os.WriteFile(CurrentTodoPath(), []byte(todo), 0644)
-}
-
-// GetCurrentTodo returns the TODO currently being worked on (from file)
-func GetCurrentTodo() string {
-	data, err := os.ReadFile(CurrentTodoPath())
-	if err != nil {
-		return "(unknown)"
-	}
-	return strings.TrimSpace(string(data))
-}
-
-// ClearCurrentTodo removes the current todo file
-func ClearCurrentTodo() {
-	os.Remove(CurrentTodoPath())
+// PendingTasksPath returns the path to the pending_tasks file
+func PendingTasksPath() string {
+	return filepath.Join(AutoclaudeDir, PendingTasksFile)
 }
 
 // NewState creates a new state with default values
@@ -262,12 +224,6 @@ Initialized autoclaude. Ready to run.
 
 // UpdateStatus updates the STATUS.md file with current state
 func (s *State) UpdateStatus(message string) error {
-	currentTodo := GetCurrentTodo()
-	todoSection := ""
-	if currentTodo != "(unknown)" && currentTodo != "" {
-		todoSection = fmt.Sprintf("**Current TODO:** %s\n", currentTodo)
-	}
-
 	retryInfo := ""
 	if s.Step == StepCritic && s.RetryCount > 0 {
 		retryInfo = fmt.Sprintf(" (attempt %d/%d)", s.RetryCount+1, 3)
@@ -276,13 +232,13 @@ func (s *State) UpdateStatus(message string) error {
 	content := fmt.Sprintf(`# Status
 
 **Current Step:** %s%s
-**TODO #:** %d
-%s**Goal:** %s
+**Task #:** %d
+**Goal:** %s
 **Test Command:** %s
 
 ## Latest Update
 %s
-`, s.Step, retryInfo, s.Iteration, todoSection, s.Goal, s.TestCmd, message)
+`, s.Step, retryInfo, s.Iteration, s.Goal, s.TestCmd, message)
 
 	return os.WriteFile(StatusPath(), []byte(content), 0644)
 }
