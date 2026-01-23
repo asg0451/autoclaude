@@ -90,13 +90,14 @@ func TestMergeSettings(t *testing.T) {
 	baseline := &ClaudeSettings{
 		Permissions: &Permissions{
 			Allow: []string{"Bash(git:*)", "Bash(go:*)"},
+			Deny:  []string{"Bash(heredoc:*)", "Bash(rm -rf:*)"}, // baseline deny rules
 		},
 	}
 
 	existing := &ClaudeSettings{
 		Permissions: &Permissions{
 			Allow: []string{"Bash(custom:*)", "Bash(git:*)"}, // git duplicated
-			Deny:  []string{"Bash(rm -rf:*)"},
+			Deny:  []string{"Bash(rm -rf:*)"},                // overlaps with baseline
 		},
 	}
 
@@ -125,9 +126,22 @@ func TestMergeSettings(t *testing.T) {
 		t.Error("should have custom permission")
 	}
 
-	// Check deny list preserved
-	if len(merged.Permissions.Deny) != 1 {
-		t.Error("should preserve deny list")
+	// Check deny lists merged (baseline + existing, deduplicated)
+	denySet := make(map[string]bool)
+	for _, d := range merged.Permissions.Deny {
+		if denySet[d] {
+			t.Errorf("duplicate deny: %s", d)
+		}
+		denySet[d] = true
+	}
+	if !denySet["Bash(heredoc:*)"] {
+		t.Error("should have baseline deny rule")
+	}
+	if !denySet["Bash(rm -rf:*)"] {
+		t.Error("should have existing deny rule")
+	}
+	if len(denySet) != 2 {
+		t.Errorf("expected 2 deny rules, got %d", len(denySet))
 	}
 }
 

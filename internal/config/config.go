@@ -194,9 +194,24 @@ func MergeSettings(baseline, existing *ClaudeSettings) *ClaudeSettings {
 	if len(allowList) > 0 {
 		result.Permissions = &Permissions{Allow: allowList}
 
-		// Preserve deny list from existing
-		if existing.Permissions != nil && len(existing.Permissions.Deny) > 0 {
-			result.Permissions.Deny = existing.Permissions.Deny
+		// Merge deny lists from both baseline and existing
+		denySet := make(map[string]bool)
+		if baseline.Permissions != nil {
+			for _, d := range baseline.Permissions.Deny {
+				denySet[d] = true
+			}
+		}
+		if existing.Permissions != nil {
+			for _, d := range existing.Permissions.Deny {
+				denySet[d] = true
+			}
+		}
+		if len(denySet) > 0 {
+			var denyList []string
+			for d := range denySet {
+				denyList = append(denyList, d)
+			}
+			result.Permissions.Deny = denyList
 		}
 	}
 

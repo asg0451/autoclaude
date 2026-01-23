@@ -13,7 +13,10 @@
       "Bash(grep:*)",
       "Bash(chmod:*)",
       "Bash(git stash:*)",
-      "Bash(git stash pop:*)"
+      "Bash(git stash pop:*)",
+      "Bash(go run:*)",
+      "Bash(/tmp/ac_test version:*)",
+      "Bash(/tmp/ac_test init:*)"
     ]
   }
 }
