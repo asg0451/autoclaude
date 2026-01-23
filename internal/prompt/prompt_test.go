@@ -337,7 +337,7 @@ func TestCriticPromptMinorIssuesTodo(t *testing.T) {
 	params := PromptParams{Goal: "test", TestCmd: "test"}
 	content := GenerateCritic(params)
 
-	if !strings.Contains(content, "YOU MUST write each minor issue") {
+	if !strings.Contains(content, "YOU MUST write each GENUINELY NEW minor issue") {
 		t.Error("critic should instruct adding minor issues as TODOs")
 	}
 	if !strings.Contains(content, "Priority: low") {

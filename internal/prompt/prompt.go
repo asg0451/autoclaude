@@ -66,6 +66,7 @@ If you start trying to fix things yourself, you break the entire orchestration l
 - Goal: {{GOAL}}
 - Architecture: Read .autoclaude/plan.md for design decisions
 - Standards: Read .autoclaude/coding-guidelines.md for language-specific requirements
+- Existing TODOs: Read .autoclaude/TODO.md to see what's already tracked
 
 ## Review Checklist
 
@@ -181,7 +182,13 @@ Brief summary of minor issues found.
 
 ## CRITICAL - DO NOT SKIP THIS STEP
 
-YOU MUST write each minor issue as a new TODO item to .autoclaude/TODO.md under "## Pending":
+Before adding any TODO, READ .autoclaude/TODO.md and check if a similar issue is already tracked.
+Do NOT add a new TODO if:
+- An existing TODO covers the same issue (even if worded differently)
+- An existing TODO would fix this issue as a side effect
+- The issue is a minor variant of something already tracked
+
+YOU MUST write each GENUINELY NEW minor issue as a TODO item to .autoclaude/TODO.md under "## Pending":
 
 ` + "```" + `
 - [ ] **Fix: <issue description>** - Completion: <specific criteria>

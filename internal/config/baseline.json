@@ -60,7 +60,8 @@
       "Bash(golangci-lint:*)",
       "Bash(pkill:*)",
       "Read(/tmp/claude/**)",
-      "Read(~/.claude/projects/*/*/tool-results)"
+      "Read(/home/*/.claude/projects/*/*/tool-results)",
+      "Read(/Users/*/.claude/projects/*/*/tool-results)"
     ],
     "deny": [
       "Bash(*<< 'EOF'*)",
